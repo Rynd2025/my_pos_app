@@ -1,31 +1,32 @@
-# 🛒 Mobile POS & Billing App
+# 🛒 Mobile POS & Billing App (Clean Architecture)
 
-A high-performance offline-first Point of Sale (POS) and billing application built with **Flutter**. Designed for seamless retail checkout operations, featuring camera-based barcode scanning, Bluetooth thermal receipt printing, and robust local data persistence.
+A high-performance offline-first Point of Sale (POS) and billing application built with **Flutter**. Designed for Tunisian retail operations, featuring advanced barcode scanning, Bluetooth thermal printing, and comprehensive sales tracking.
 
 ---
 
 ## 🚀 Key Features
 
-* **📦 Product Management:** Complete CRUD operations for inventory items with integrated barcode/QR code support.
-* **⚡ Smart Checkout System:** Rapid cart building via device camera scanning or manual entry, with instant tax and total calculation.
-* **🖨️ Thermal Printing:** Direct integration with Bluetooth thermal POS printers for immediate itemized receipt generation.
-* **⚙️ Shop Settings:** Centrally managed shop details and configurations printed dynamically on receipts.
-* **🔒 Offline-First Architecture:** Powered by **Hive** (NoSQL local database) for lightning-fast localized storage—no active internet connection required.
+* **📦 Shop Catalog & Live Dashboard:** Intuitive category-based browsing with a prominent real-time "TOTAL CART" display on the home screen.
+* **⚡ Smart Scanning System:** Robust camera-based scanning with 1.5s re-scan cooldown, consecutive frame verification, and automatic quantity incrementing.
+* **📈 Sales History:** Persistent local record of all transactions. Shop owners can inspect past sales, review itemized details, and track performance.
+* **🛠️ Inventory Management:** Full CRUD operations for products including category assignment, barcode integration, and camera-based image picking.
+* **🖨️ Thermal Printing:** Direct integration with Bluetooth thermal printers for generating itemized receipts formatted in **TND** (Tunisian Dinars).
+* **🔒 Offline-First:** Powered by **Hive** (NoSQL local database) for lightning-fast localized storage—no internet connection required.
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
-This project is built using industry-standard architectural principles to ensure scalability, testability, and clean separation of concerns:
+Built using industry-standard Clean Architecture principles to ensure scalability and strict separation of concerns:
 
 * **Framework:** Flutter (Dart)
-* **Architecture:** Clean Architecture & Feature-Driven Design (`core` + `features`)
+* **Architecture:** Clean Architecture (Entities, Use Cases, Repositories, Data Sources)
 * **State Management:** `flutter_bloc`
 * **Dependency Injection:** `get_it`
 * **Routing:** `go_router`
 * **Local Database:** `hive` & `hive_flutter`
-* **Functional Programming:** `fpdart` (for robust Either-based error handling)
-* **Hardware Integrations:** `mobile_scanner`, `print_bluetooth_thermal`
+* **Currency:** Tunisian Dinar (TND) with 3-decimal precision
+* **Hardware:** `mobile_scanner`, `print_bluetooth_thermal`, `image_picker`
 
 ---
 
@@ -33,45 +34,62 @@ This project is built using industry-standard architectural principles to ensure
 
 ```text
 lib/
-├── core/                       # Shared utilities, themes, and global components
-│   ├── data/                   # Global data sources (Hive setup)
+├── config/                     # App-wide configuration (Routes)
+├── core/                       # Shared logic and global infrastructure
+│   ├── data/                   # Global data sources (Hive initialization)
 │   ├── error/                  # Failure and exception models
-│   ├── theme/                  # Typography and styling
-│   ├── utils/                  # Helpers and formatters
-│   └── service_locator.dart    # Dependency injection setup
+│   ├── theme/                  # Material 3 typography and styling
+│   ├── usecase/                # Base UseCase definitions
+│   └── utils/                  # Helpers (Printer, Validators, Formatters)
 │
-└── features/                   # Independent feature modules
-    ├── billing/                # Cart, checkout, and invoice generation
-    ├── product/                # Inventory management and barcode scanning
-    ├── settings/               # App configuration and printer pairing
-    └── shop/                   # Shop details configuration
-🚀 Getting Started
-Prerequisites
-Flutter SDK installed on your machine.
+└── features/                   # Feature-driven modules
+    ├── billing/                # Cart logic and POS scanning interface
+    ├── product/                # Inventory/Product CRUD and data models
+    ├── sales/                  # Transaction persistence and history tracking
+    ├── settings/               # Printer pairing and app preferences
+    └── shop/                   # Catalog UI and shop profile configuration
+```
 
-Android Studio / VS Code with Flutter extensions.
+---
 
-Installation & Setup
-Clone the repository:
+## 🚀 Getting Started
 
-Bash
-git clone [https://github.com/Rynd2025/my_pos_app.git](https://github.com/Rynd2025/my_pos_app.git)
-cd my_pos_app
-Install dependencies:
+### Prerequisites
+* Flutter SDK (Latest Stable)
+* Android Studio / VS Code with Flutter extensions
+* A Bluetooth Thermal Printer (optional, for printing features)
 
-Bash
-flutter pub get
-Run code generation (Required for Hive adapters & JSON serialization):
+### Installation & Setup
 
-Bash
-dart run build_runner build --delete-conflicting-outputs
-Run the app:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Rynd2025/my_pos_app.git
+   cd my_pos_app
+   ```
 
-Bash
-flutter run
-👩‍💻 Author
-Rahma Ben Seghaier
+2. **Install dependencies:**
+   ```bash
+   flutter pub get
+   ```
 
-Full-stack Software Engineer & Mobile Developer
+3. **Generate Hive Adapters:**
+   ```bash
+   flutter pub run build_runner build --delete-conflicting-outputs
+   ```
 
-GitHub: Rynd2025
+4. **Run the app:**
+   ```bash
+   flutter run
+   ```
+
+---
+
+## 👥 Authors
+
+**Rahma Ben Seghaier**  
+*Full-stack Software Engineer & Mobile Developer*  
+GitHub: [Rynd2025](https://github.com/Rynd2025)
+
+**Mohamed Iyed Tahri**  
+*Data Scientist & Full Stack AI Engineer*  
+GitHub: [MohamedIyedTahri](https://github.com/MohamedIyedTahri)

@@ -6,20 +6,57 @@ import 'package:billing_app/features/product/domain/usecases/product_usecases.da
 import '../../../../core/utils/printer_helper.dart';
 import '../../../../core/data/hive_database.dart';
 
+import 'package:billing_app/features/sales/domain/entities/sale.dart' as sales;
+import 'package:billing_app/features/sales/domain/usecases/sale_usecases.dart';
+import 'package:uuid/uuid.dart';
+
 part 'billing_event.dart';
 part 'billing_state.dart';
 
 class BillingBloc extends Bloc<BillingEvent, BillingState> {
   final GetProductByBarcodeUseCase getProductByBarcodeUseCase;
+  final SaveSaleUseCase saveSaleUseCase;
 
-  BillingBloc({required this.getProductByBarcodeUseCase})
-      : super(const BillingState()) {
+  BillingBloc({
+    required this.getProductByBarcodeUseCase,
+    required this.saveSaleUseCase,
+  }) : super(const BillingState()) {
     on<ScanBarcodeEvent>(_onScanBarcode);
     on<AddProductToCartEvent>(_onAddProductToCart);
     on<RemoveProductFromCartEvent>(_onRemoveProductFromCart);
     on<UpdateQuantityEvent>(_onUpdateQuantity);
     on<ClearCartEvent>(_onClearCart);
     on<PrintReceiptEvent>(_onPrintReceipt);
+    on<ValidateSaleEvent>(_onValidateSale);
+  }
+
+  Future<void> _onValidateSale(
+      ValidateSaleEvent event, Emitter<BillingState> emit) async {
+    if (state.cartItems.isEmpty) return;
+
+    final sale = sales.Sale(
+      id: const Uuid().v4(),
+      dateTime: DateTime.now(),
+      totalAmount: state.totalAmount,
+      items: state.cartItems
+          .map((item) => sales.SaleItem(
+                productId: item.product.id,
+                productName: item.product.name,
+                price: item.product.price,
+                quantity: item.quantity,
+              ))
+          .toList(),
+    );
+
+    final result = await saveSaleUseCase(sale);
+    result.fold(
+      (failure) => emit(state.copyWith(error: 'Failed to save sale')),
+      (_) {
+        // Clear cart after successful save? 
+        // Maybe wait for user action in UI, but usually validation clears POS.
+        add(ClearCartEvent());
+      },
+    );
   }
 
   Future<void> _onScanBarcode(

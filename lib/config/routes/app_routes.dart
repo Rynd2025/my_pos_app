@@ -8,23 +8,44 @@ import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/billing/presentation/pages/scanner_page.dart';
 import '../../features/billing/presentation/pages/checkout_page.dart';
 import '../../features/product/domain/entities/product.dart';
+import '../../features/shop/presentation/pages/catalog_home_page.dart';
+import '../../features/shop/presentation/pages/category_products_page.dart';
+import '../../features/sales/presentation/pages/sales_history_page.dart';
 
 final router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(
       path: '/',
-      builder: (context, state) => const HomePage(),
+      builder: (context, state) => const CatalogHomePage(),
       routes: [
         GoRoute(
           path: 'scanner',
-          builder: (context, state) => const ScannerPage(),
+          builder: (context, state) {
+            final isContinuous = state.extra as bool? ?? false;
+            return ScannerPage(isContinuous: isContinuous);
+          },
         ),
         GoRoute(
           path: 'checkout',
           builder: (context, state) => const CheckoutPage(),
         ),
+        GoRoute(
+          path: 'catalog/category/:name',
+          builder: (context, state) {
+            final category = state.pathParameters['name'] ?? '';
+            return CategoryProductsPage(category: category);
+          },
+        ),
+        GoRoute(
+          path: 'sales',
+          builder: (context, state) => const SalesHistoryPage(),
+        ),
       ],
+    ),
+    GoRoute(
+      path: '/pos',
+      builder: (context, state) => const HomePage(),
     ),
     GoRoute(
       path: '/settings',
@@ -36,14 +57,16 @@ final router = GoRouter(
       routes: [
         GoRoute(
           path: 'add',
-          builder: (context, state) => const AddProductPage(),
+          builder: (context, state) {
+            final barcode = state.extra as String?;
+            return AddProductPage(initialBarcode: barcode);
+          },
         ),
         GoRoute(
           path: 'edit/:id',
           builder: (context, state) {
             final product = state.extra as Product?;
             if (product == null) {
-              // If we land here without extra (e.g. deep link), go back to products for now.
               return const ProductListPage();
             }
             return EditProductPage(product: product);

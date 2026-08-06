@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+
+# Old prototype projects
+lib1/
+
+# AI/tool generated artifacts
+.artifacts/
+
+# Local development settings
+devtools_options.yaml
