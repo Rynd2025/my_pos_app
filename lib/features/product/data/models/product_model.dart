@@ -20,6 +20,15 @@ class ProductModel extends Product {
   @override
   @HiveField(4)
   final int stock;
+  @override
+  @HiveField(5, defaultValue: 'General')
+  final String category;
+  @override
+  @HiveField(6, defaultValue: '')
+  final String image;
+  @override
+  @HiveField(7, defaultValue: '')
+  final String description;
 
   const ProductModel({
     required this.id,
@@ -27,12 +36,18 @@ class ProductModel extends Product {
     required this.barcode,
     required this.price,
     required this.stock,
+    this.category = 'General',
+    this.image = '',
+    this.description = '',
   }) : super(
           id: id,
           name: name,
           barcode: barcode,
           price: price,
           stock: stock,
+          category: category,
+          image: image,
+          description: description,
         );
 
   factory ProductModel.fromEntity(Product product) {
@@ -42,6 +57,9 @@ class ProductModel extends Product {
       barcode: product.barcode,
       price: product.price,
       stock: product.stock,
+      category: product.category,
+      image: product.image,
+      description: product.description,
     );
   }
 
@@ -52,6 +70,9 @@ class ProductModel extends Product {
       barcode: barcode,
       price: price,
       stock: stock,
+      category: category,
+      image: image,
+      description: description,
     );
   }
 }

@@ -2,10 +2,10 @@ import 'package:billing_app/core/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../bloc/billing_bloc.dart';
+import '../../../sales/presentation/bloc/sales_bloc.dart';
 
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage({super.key});
@@ -15,6 +15,10 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
+  void _completeSale() {
+    context.read<BillingBloc>().add(ValidateSaleEvent());
+  }
+
   @override
   Widget build(BuildContext context) {
     const borderColor = Color(0xFFE5E5EA);
@@ -48,18 +52,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Printed successfully'),
                     backgroundColor: Colors.green));
-                // context.read<BillingBloc>().add(ClearCartEvent());
-                // context.go('/');
+              }
+
+              if (state.cartItems.isEmpty && !state.isPrinting) {
+                // Sale was validated (cart cleared)
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Sale completed successfully!'),
+                    backgroundColor: Colors.blue));
+                context.read<SalesBloc>().add(LoadSalesEvent());
+                context.go('/');
               }
             },
             builder: (context, billingState) {
               return BlocBuilder<ShopBloc, ShopState>(
                   builder: (context, shopState) {
-                String upiId = '';
                 String shopName = 'Shop';
 
                 if (shopState is ShopLoaded) {
-                  upiId = shopState.shop.upiId;
                   shopName = shopState.shop.name;
                 }
 
@@ -120,11 +129,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                             TextAlign.left,
                                           ),
                                           _buildDataCell(
-                                              '₹${item.product.price.toStringAsFixed(2)}',
+                                              '${item.product.price.toStringAsFixed(3)} TND',
                                               TextAlign.right,
                                               isSubtitle: true),
                                           _buildDataCell(
-                                              '₹${item.total.toStringAsFixed(2)}',
+                                              '${item.total.toStringAsFixed(3)} TND',
                                               TextAlign.right,
                                               isBold: true),
                                         ],
@@ -168,33 +177,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             child: Column(
                               children: [
                                 const SizedBox(
-                                  height: 8,
+                                  height: 15,
                                 ),
-                                upiId.isNotEmpty
-                                    ? Column(
-                                        children: [
-                                          const Text(
-                                            'Scan to Pay',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                              letterSpacing: 1.1,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          SizedBox(
-                                            width: 180,
-                                            height: 180,
-                                            child: PrettyQrView.data(
-                                              data:
-                                                  'upi://pay?pa=$upiId&pn=$shopName&am=${billingState.totalAmount.toStringAsFixed(2)}&cu=INR',
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : const SizedBox.shrink(),
-                                const SizedBox(height: 15),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -209,7 +193,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       ),
                                     ),
                                     Text(
-                                      '₹${billingState.totalAmount.toStringAsFixed(2)}',
+                                      '${billingState.totalAmount.toStringAsFixed(3)} TND',
                                       style: const TextStyle(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
@@ -222,28 +206,68 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               ],
                             ),
                           ),
-                          PrimaryButton(
-                            onPressed: () {
-                              if (shopState is ShopLoaded) {
-                                context.read<BillingBloc>().add(
-                                    PrintReceiptEvent(
-                                        shopName: shopState.shop.name,
-                                        address1: shopState.shop.addressLine1,
-                                        address2: shopState.shop.addressLine2,
-                                        phone: shopState.shop.phoneNumber,
-                                        footer: shopState.shop.footerText));
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content:
-                                            Text('Shop details not loaded'),
-                                        backgroundColor: Colors.red));
-                              }
-                            },
-                            label: 'Print Receipt',
-                            icon: Icons.print,
-                            isLoading: billingState.isPrinting,
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: 20, right: 10),
+                                  child: OutlinedButton.icon(
+                                    onPressed: billingState.isPrinting
+                                        ? null
+                                        : () {
+                                            if (shopState is ShopLoaded) {
+                                              context.read<BillingBloc>().add(
+                                                  PrintReceiptEvent(
+                                                      shopName:
+                                                          shopState.shop.name,
+                                                      address1: shopState
+                                                          .shop.addressLine1,
+                                                      address2: shopState
+                                                          .shop.addressLine2,
+                                                      phone: shopState
+                                                          .shop.phoneNumber,
+                                                      footer: shopState
+                                                          .shop.footerText));
+                                            }
+                                          },
+                                    icon: const Icon(Icons.print),
+                                    label: const Text('Print'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 15),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                      right: 20, left: 10),
+                                  child: ElevatedButton.icon(
+                                    onPressed: _completeSale,
+                                    icon: const Icon(Icons.check_circle),
+                                    label: const Text('Complete'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          Theme.of(context).primaryColor,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 15),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),

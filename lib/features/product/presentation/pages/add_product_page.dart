@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:billing_app/core/widgets/input_label.dart';
 import 'package:billing_app/core/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import '../bloc/product_bloc.dart';
@@ -11,7 +13,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_validators.dart';
 
 class AddProductPage extends StatefulWidget {
-  const AddProductPage({super.key});
+  final String? initialBarcode;
+  const AddProductPage({super.key, this.initialBarcode});
 
   @override
   State<AddProductPage> createState() => _AddProductPageState();
@@ -20,14 +23,33 @@ class AddProductPage extends StatefulWidget {
 class _AddProductPageState extends State<AddProductPage> {
   final _formKey = GlobalKey<FormState>();
   String _name = '';
-  String _barcode = '';
+  late String _barcode;
   double _price = 0.0;
+  String _category = '';
+  String _description = '';
+  String _imagePath = '';
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _barcode = widget.initialBarcode ?? '';
+  }
 
   void _scanBarcode() async {
     final result = await context.push<String>('/scanner');
     if (result != null && result.isNotEmpty) {
       setState(() {
         _barcode = result;
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+    if (image != null) {
+      setState(() {
+        _imagePath = image.path;
       });
     }
   }
@@ -40,7 +62,7 @@ class _AddProductPageState extends State<AddProductPage> {
       final existingProduct =
           productState.products.where((p) => p.barcode == _barcode).firstOrNull;
 
-      if (existingProduct != null) {
+      if (_barcode.isNotEmpty && existingProduct != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Product with barcode "$_barcode" already exists!'),
@@ -55,6 +77,9 @@ class _AddProductPageState extends State<AddProductPage> {
         name: _name,
         barcode: _barcode,
         price: _price,
+        category: _category,
+        description: _description,
+        image: _imagePath,
       );
 
       context.read<ProductBloc>().add(AddProduct(product));
@@ -85,7 +110,31 @@ class _AddProductPageState extends State<AddProductPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const InputLabel(text: 'Barcode'),
+                  Center(
+                    child: GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey[300]!),
+                          image: _imagePath.isNotEmpty
+                              ? DecorationImage(
+                                  image: FileImage(File(_imagePath)),
+                                  fit: BoxFit.cover)
+                              : null,
+                        ),
+                        child: _imagePath.isEmpty
+                            ? const Icon(Icons.add_a_photo_outlined,
+                                size: 40, color: Colors.grey)
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const InputLabel(text: 'Barcode (Optional)'),
                   Row(
                     children: [
                       Expanded(
@@ -95,9 +144,7 @@ class _AddProductPageState extends State<AddProductPage> {
                           decoration: const InputDecoration(
                             hintText: 'Scan or enter barcode',
                           ),
-                          validator:
-                              AppValidators.required('Please enter a barcode'),
-                          onSaved: (value) => _barcode = value!,
+                          onSaved: (value) => _barcode = value ?? '',
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -129,20 +176,50 @@ class _AddProductPageState extends State<AddProductPage> {
                     onSaved: (value) => _name = value!,
                   ),
                   const SizedBox(height: 24),
-                  const InputLabel(text: 'Price'),
+                  const InputLabel(text: 'Category'),
                   TextFormField(
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
-                      hintText: '0.00',
-                      prefixText: '₹ ',
-                      prefixStyle: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black),
+                      hintText: 'e.g. Grains',
                     ),
-                    validator: AppValidators.price,
-                    onSaved: (value) => _price = double.parse(value!),
+                    textCapitalization: TextCapitalization.words,
+                    validator: AppValidators.required('Please enter a category'),
+                    onSaved: (value) => _category = value!,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const InputLabel(text: 'Price'),
+                            TextFormField(
+                              keyboardType: const TextInputType.numberWithOptions(
+                                  decimal: true),
+                              decoration: const InputDecoration(
+                                hintText: '0.000',
+                                suffixText: ' TND',
+                                suffixStyle: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black),
+                              ),
+                              validator: AppValidators.price,
+                              onSaved: (value) => _price = double.parse(value!),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const InputLabel(text: 'Description'),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      hintText: 'Product details...',
+                    ),
+                    maxLines: 3,
+                    onSaved: (value) => _description = value ?? '',
                   ),
                 ],
               ),
