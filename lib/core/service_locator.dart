@@ -49,7 +49,7 @@ Future<void> init() async {
   
   sl.registerLazySingleton(() {
     final dio = Dio(BaseOptions(
-      baseUrl: String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8000'),
+      baseUrl: String.fromEnvironment('API_BASE_URL', defaultValue: 'http://108.181.196.138:8000'),
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     ));
