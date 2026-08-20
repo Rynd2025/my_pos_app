@@ -11,6 +11,13 @@ import '../../features/settings/data/repositories/printer_repository_impl.dart';
 import '../../features/settings/domain/repositories/printer_repository.dart';
 import '../../features/settings/presentation/bloc/printer_bloc.dart';
 
+// Auth imports
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/domain/usecases/auth_usecases.dart';
+import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/services/local_auth_service.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -35,6 +42,16 @@ Future<void> init() async {
   sl.registerFactory(
     () => PrinterBloc(
       repository: sl(),
+    ),
+  );
+
+  // Auth Bloc
+  sl.registerFactory(
+    () => AuthBloc(
+      loginUseCase: sl(),
+      registerUseCase: sl(),
+      resetPasswordUseCase: sl(),
+      signOutUseCase: sl(),
     ),
   );
 
@@ -64,4 +81,18 @@ Future<void> init() async {
   sl.registerLazySingleton<PrinterRepository>(
     () => PrinterRepositoryImpl(),
   );
+
+  // Auth use cases
+  sl.registerLazySingleton(() => LoginUseCase(sl()));
+  sl.registerLazySingleton(() => RegisterUseCase(sl()));
+  sl.registerLazySingleton(() => ResetPasswordUseCase(sl()));
+  sl.registerLazySingleton(() => SignOutUseCase(sl()));
+
+  // Auth repository (uses the LocalAuthService internally)
+  sl.registerLazySingleton<AuthRepository>(
+    () => AuthRepositoryImpl(),
+  );
+
+  // Local auth service (Hive-backed singleton)
+  sl.registerLazySingleton(() => LocalAuthService.instance);
 }
