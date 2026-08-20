@@ -6,6 +6,9 @@ import 'package:app_settings/app_settings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
+import '../../../sync/presentation/bloc/sync_bloc.dart';
+import '../../../sync/presentation/bloc/sync_event.dart';
+import '../../../sync/presentation/bloc/sync_state.dart';
 import '../bloc/printer_bloc.dart';
 import '../bloc/printer_event.dart';
 import '../bloc/printer_state.dart';
@@ -164,6 +167,39 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
               ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Sync Section
+            _buildSectionHeader('Sync'),
+            BlocConsumer<SyncBloc, SyncState>(
+              listener: (context, state) {
+                if (state.status == SyncStatus.success) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Sync réussie'), backgroundColor: Colors.green));
+                } else if (state.status == SyncStatus.error) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Échec de la sync: ${state.message ?? ''}'),
+                      backgroundColor: Colors.red));
+                }
+              },
+              builder: (context, state) {
+                final isSyncing = state.status == SyncStatus.loading;
+                return _buildListGroup(
+                  children: [
+                    _buildListItem(
+                      icon: Icons.sync,
+                      title: 'Synchroniser maintenant',
+                      subtitle: 'Envoyer les changements locaux et récupérer les mises à jour',
+                      trailingWidget: isSyncing
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                          : null,
+                      onTap: isSyncing ? null : () => context.read<SyncBloc>().add(SyncStarted()),
+                    ),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 24),
