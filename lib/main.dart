@@ -17,8 +17,10 @@ import 'features/customer/presentation/bloc/customer_bloc.dart';
 import 'features/customer/presentation/bloc/customer_event.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
+import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/sync/presentation/bloc/sync_bloc.dart';
 import 'core/services/catalog_import_service.dart';
+import 'core/services/sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,9 +75,19 @@ class _AuthRouterState extends State<AuthRouter> {
   @override
   void initState() {
     super.initState();
+    _applyAutoSync(context.read<AuthBloc>().state.status);
     _authSubscription = context.read<AuthBloc>().stream.listen((state) {
+      _applyAutoSync(state.status);
       router.refresh();
     });
+  }
+
+  void _applyAutoSync(AuthStatus status) {
+    if (status == AuthStatus.authenticated) {
+      di.sl<SyncService>().startAutoSync();
+    } else {
+      di.sl<SyncService>().stopAutoSync();
+    }
   }
 
   @override

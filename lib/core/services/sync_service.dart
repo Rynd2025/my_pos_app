@@ -5,6 +5,7 @@ import '../service_locator.dart';
 
 class SyncService {
   Timer? _timer;
+  Timer? _debounce;
   bool _isSyncing = false;
 
   void startAutoSync() {
@@ -16,6 +17,16 @@ class SyncService {
 
   void stopAutoSync() {
     _timer?.cancel();
+    _debounce?.cancel();
+  }
+
+  /// Call whenever a local write queues a new outbox entry. Debounced so a
+  /// single sale (which queues several entries in quick succession) doesn't
+  /// trigger a burst of overlapping sync attempts — just one, shortly after
+  /// things settle. Safe to call with no internet: sync() swallows failures.
+  void notifyLocalChange() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(seconds: 2), sync);
   }
 
   Future<void> sync() async {
