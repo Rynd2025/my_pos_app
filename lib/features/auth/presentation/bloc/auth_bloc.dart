@@ -1,5 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:billing_app/core/data/hive_database.dart';
 import '../../domain/usecases/auth_usecases.dart';
 
 part 'auth_event.dart';
@@ -28,6 +29,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final ok = await loginUseCase(event.email, event.password);
       if (ok) {
+        // persist session flag locally
+        HiveDatabase.settingsBox.put('is_logged_in', true);
+        HiveDatabase.settingsBox.put('current_user_email', event.email);
         emit(const AuthAuthenticated());
       } else {
         emit(const AuthFailure(message: 'Invalid credentials'));
@@ -68,7 +72,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
     try {
-      await signOutUseCase();
+      await signOutUseCase.call();
+      // clear persisted session flag
+      HiveDatabase.settingsBox.put('is_logged_in', false);
+      HiveDatabase.settingsBox.delete('current_user_email');
       emit(const AuthUnauthenticated());
     } catch (e) {
       emit(AuthFailure(message: e.toString()));
