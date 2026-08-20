@@ -27,13 +27,15 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       brand: fields[5] as String?,
       category: fields[6] as String?,
       unit: fields[7] as String?,
+      updatedAt: fields[11] as DateTime?,
+      isDeleted: fields[12] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, ProductModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +55,11 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       ..writeByte(9)
       ..write(obj.purchasePrice)
       ..writeByte(10)
-      ..write(obj.lowStockThreshold);
+      ..write(obj.lowStockThreshold)
+      ..writeByte(11)
+      ..write(obj.updatedAt)
+      ..writeByte(12)
+      ..write(obj.isDeleted);
   }
 
   @override
@@ -66,3 +72,40 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+ProductModel _$ProductModelFromJson(Map<String, dynamic> json) => ProductModel(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      barcode: json['barcode'] as String?,
+      price: (json['price'] as num).toDouble(),
+      purchasePrice: (json['purchasePrice'] as num?)?.toDouble() ?? 0.0,
+      stock: (json['stock'] as num).toInt(),
+      lowStockThreshold: (json['lowStockThreshold'] as num?)?.toInt(),
+      brand: json['brand'] as String?,
+      category: json['category'] as String?,
+      unit: json['unit'] as String?,
+      updatedAt: json['updatedAt'] == null
+          ? null
+          : DateTime.parse(json['updatedAt'] as String),
+      isDeleted: json['isDeleted'] as bool? ?? false,
+    );
+
+Map<String, dynamic> _$ProductModelToJson(ProductModel instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'name': instance.name,
+      'barcode': instance.barcode,
+      'price': instance.price,
+      'stock': instance.stock,
+      'brand': instance.brand,
+      'category': instance.category,
+      'unit': instance.unit,
+      'purchasePrice': instance.purchasePrice,
+      'lowStockThreshold': instance.lowStockThreshold,
+      'updatedAt': instance.updatedAt?.toIso8601String(),
+      'isDeleted': instance.isDeleted,
+    };

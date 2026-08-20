@@ -1,9 +1,11 @@
 import 'package:hive/hive.dart';
+import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/sale.dart';
 
 part 'sale_model.g.dart';
 
 @HiveType(typeId: 2)
+@JsonSerializable()
 class SaleModel extends Sale {
   @override
   @HiveField(0)
@@ -32,6 +34,12 @@ class SaleModel extends Sale {
   @override
   @HiveField(8)
   final int paymentMethodIndex;
+  @override
+  @HiveField(9)
+  final DateTime? updatedAt;
+  @override
+  @HiveField(10)
+  final bool isDeleted;
 
   SaleModel({
     required this.id,
@@ -43,6 +51,8 @@ class SaleModel extends Sale {
     required this.paidMillimes,
     required this.dueMillimes,
     required this.paymentMethodIndex,
+    this.updatedAt,
+    this.isDeleted = false,
   }) : super(
           id: id,
           ticketNumber: ticketNumber,
@@ -53,6 +63,8 @@ class SaleModel extends Sale {
           paidMillimes: paidMillimes,
           dueMillimes: dueMillimes,
           paymentMethod: PaymentMethod.values[paymentMethodIndex],
+          updatedAt: updatedAt,
+          isDeleted: isDeleted,
         );
 
   factory SaleModel.fromEntity(Sale sale) {
@@ -66,6 +78,8 @@ class SaleModel extends Sale {
       paidMillimes: sale.paidMillimes,
       dueMillimes: sale.dueMillimes,
       paymentMethodIndex: sale.paymentMethod.index,
+      updatedAt: sale.updatedAt,
+      isDeleted: sale.isDeleted,
     );
   }
 
@@ -80,59 +94,103 @@ class SaleModel extends Sale {
       paidMillimes: paidMillimes,
       dueMillimes: dueMillimes,
       paymentMethod: PaymentMethod.values[paymentMethodIndex],
+      updatedAt: updatedAt,
+      isDeleted: isDeleted,
     );
   }
+
+  factory SaleModel.fromJson(Map<String, dynamic> json) => _$SaleModelFromJson(json);
+  Map<String, dynamic> toJson() => _$SaleModelToJson(this);
 }
 
 @HiveType(typeId: 3)
+@JsonSerializable()
 class SaleItemModel extends SaleItem {
   @override
   @HiveField(0)
-  final String productId;
+  final String id;
   @override
   @HiveField(1)
-  final String productName;
+  final String saleId;
   @override
   @HiveField(2)
-  final int quantity;
+  final String? productId;
   @override
   @HiveField(3)
-  final int priceMillimes;
+  final String productName;
   @override
   @HiveField(4)
-  final int purchasePriceMillimes;
+  final int quantity;
+  @override
+  @HiveField(5)
+  final int priceAtSaleMillimes;
+  @override
+  @HiveField(6)
+  final int purchasePriceAtSaleMillimes;
+  @override
+  @HiveField(7)
+  final DateTime createdAt;
+  @override
+  @HiveField(8)
+  final DateTime? updatedAt;
+  @override
+  @HiveField(9)
+  final bool isDeleted;
 
   SaleItemModel({
-    required this.productId,
+    required this.id,
+    required this.saleId,
+    this.productId,
     required this.productName,
     required this.quantity,
-    required this.priceMillimes,
-    required this.purchasePriceMillimes,
+    required this.priceAtSaleMillimes,
+    required this.purchasePriceAtSaleMillimes,
+    required this.createdAt,
+    this.updatedAt,
+    this.isDeleted = false,
   }) : super(
+          id: id,
+          saleId: saleId,
           productId: productId,
           productName: productName,
           quantity: quantity,
-          priceMillimes: priceMillimes,
-          purchasePriceMillimes: purchasePriceMillimes,
+          priceAtSaleMillimes: priceAtSaleMillimes,
+          purchasePriceAtSaleMillimes: purchasePriceAtSaleMillimes,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+          isDeleted: isDeleted,
         );
 
   factory SaleItemModel.fromEntity(SaleItem item) {
     return SaleItemModel(
+      id: item.id,
+      saleId: item.saleId,
       productId: item.productId,
       productName: item.productName,
       quantity: item.quantity,
-      priceMillimes: item.priceMillimes,
-      purchasePriceMillimes: item.purchasePriceMillimes,
+      priceAtSaleMillimes: item.priceAtSaleMillimes,
+      purchasePriceAtSaleMillimes: item.purchasePriceAtSaleMillimes,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      isDeleted: item.isDeleted,
     );
   }
 
   SaleItem toEntity() {
     return SaleItem(
+      id: id,
+      saleId: saleId,
       productId: productId,
       productName: productName,
       quantity: quantity,
-      priceMillimes: priceMillimes,
-      purchasePriceMillimes: purchasePriceMillimes,
+      priceAtSaleMillimes: priceAtSaleMillimes,
+      purchasePriceAtSaleMillimes: purchasePriceAtSaleMillimes,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      isDeleted: isDeleted,
     );
   }
+
+  factory SaleItemModel.fromJson(Map<String, dynamic> json) => _$SaleItemModelFromJson(json);
+  Map<String, dynamic> toJson() => _$SaleItemModelToJson(this);
 }

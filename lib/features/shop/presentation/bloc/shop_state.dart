@@ -1,27 +1,30 @@
 part of 'shop_bloc.dart';
 
-abstract class ShopState extends Equatable {
-  const ShopState();
-  @override
-  List<Object> get props => [];
-}
+enum ShopStatus { initial, loading, loaded, success, error }
 
-class ShopInitial extends ShopState {}
-
-class ShopLoading extends ShopState {}
-
-class ShopLoaded extends ShopState {
+class ShopState extends Equatable {
+  final ShopStatus status;
   final Shop shop;
-  const ShopLoaded(this.shop);
-  @override
-  List<Object> get props => [shop];
-}
+  final String? message;
 
-class ShopError extends ShopState {
-  final String message;
-  const ShopError(this.message);
-  @override
-  List<Object> get props => [message];
-}
+  const ShopState({
+    this.status = ShopStatus.initial,
+    this.shop = const Shop(),
+    this.message,
+  });
 
-class ShopOperationSuccess extends ShopState {}
+  @override
+  List<Object?> get props => [status, shop, message];
+
+  ShopState copyWith({
+    ShopStatus? status,
+    Shop? shop,
+    String? message,
+  }) {
+    return ShopState(
+      status: status ?? this.status,
+      shop: shop ?? this.shop,
+      message: message ?? this.message,
+    );
+  }
+}

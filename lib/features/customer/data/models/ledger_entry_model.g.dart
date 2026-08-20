@@ -24,16 +24,18 @@ class LedgerEntryModelAdapter extends TypeAdapter<LedgerEntryModel> {
       amountMillimes: fields[4] as int,
       createdAt: fields[5] as DateTime,
       note: fields[6] as String?,
-      paymentId: fields[7] as String,
+      paymentId: fields[7] as String?,
       ticketNumber: fields[8] as String?,
       balanceAfter: fields[9] as int,
+      updatedAt: fields[10] as DateTime?,
+      isDeleted: fields[11] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, LedgerEntryModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +55,11 @@ class LedgerEntryModelAdapter extends TypeAdapter<LedgerEntryModel> {
       ..writeByte(8)
       ..write(obj.ticketNumber)
       ..writeByte(9)
-      ..write(obj.balanceAfter);
+      ..write(obj.balanceAfter)
+      ..writeByte(10)
+      ..write(obj.updatedAt)
+      ..writeByte(11)
+      ..write(obj.isDeleted);
   }
 
   @override
@@ -66,3 +72,41 @@ class LedgerEntryModelAdapter extends TypeAdapter<LedgerEntryModel> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+LedgerEntryModel _$LedgerEntryModelFromJson(Map<String, dynamic> json) =>
+    LedgerEntryModel(
+      id: json['id'] as String,
+      customerId: json['customerId'] as String,
+      saleId: json['saleId'] as String?,
+      typeIndex: (json['typeIndex'] as num).toInt(),
+      amountMillimes: (json['amountMillimes'] as num).toInt(),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      note: json['note'] as String?,
+      paymentId: json['paymentId'] as String?,
+      ticketNumber: json['ticketNumber'] as String?,
+      balanceAfter: (json['balanceAfter'] as num).toInt(),
+      updatedAt: json['updatedAt'] == null
+          ? null
+          : DateTime.parse(json['updatedAt'] as String),
+      isDeleted: json['isDeleted'] as bool? ?? false,
+    );
+
+Map<String, dynamic> _$LedgerEntryModelToJson(LedgerEntryModel instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'customerId': instance.customerId,
+      'saleId': instance.saleId,
+      'typeIndex': instance.typeIndex,
+      'amountMillimes': instance.amountMillimes,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'note': instance.note,
+      'paymentId': instance.paymentId,
+      'ticketNumber': instance.ticketNumber,
+      'balanceAfter': instance.balanceAfter,
+      'updatedAt': instance.updatedAt?.toIso8601String(),
+      'isDeleted': instance.isDeleted,
+    };

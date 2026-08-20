@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'config/routes/app_routes.dart';
@@ -14,6 +15,9 @@ import 'features/sales/presentation/bloc/sales_bloc.dart';
 import 'features/sales/presentation/bloc/sales_event.dart';
 import 'features/customer/presentation/bloc/customer_bloc.dart';
 import 'features/customer/presentation/bloc/customer_event.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_event.dart';
+import 'features/sync/presentation/bloc/sync_bloc.dart';
 import 'core/services/catalog_import_service.dart';
 
 void main() async {
@@ -34,6 +38,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
+        BlocProvider<AuthBloc>(
+            create: (context) => di.sl<AuthBloc>()..add(AppStarted())),
+        BlocProvider<SyncBloc>(
+            create: (context) => di.sl<SyncBloc>()),
         BlocProvider<ProductBloc>(
             create: (context) => di.sl<ProductBloc>()..add(LoadProducts())),
         BlocProvider<ShopBloc>(
@@ -47,12 +55,42 @@ class MyApp extends StatelessWidget {
         BlocProvider<CustomerBloc>(
             create: (context) => di.sl<CustomerBloc>()..add(LoadCustomers())),
       ],
-      child: MaterialApp.router(
-        title: 'Billing App',
-        theme: AppTheme.lightTheme,
-        routerConfig: router,
-        debugShowCheckedModeBanner: false,
-      ),
+      child: const AuthRouter(),
+    );
+  }
+}
+
+class AuthRouter extends StatefulWidget {
+  const AuthRouter({super.key});
+
+  @override
+  State<AuthRouter> createState() => _AuthRouterState();
+}
+
+class _AuthRouterState extends State<AuthRouter> {
+  late StreamSubscription _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSubscription = context.read<AuthBloc>().stream.listen((state) {
+      router.refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'Mon POS',
+      theme: AppTheme.lightTheme,
+      routerConfig: router,
+      debugShowCheckedModeBanner: false,
     );
   }
 }

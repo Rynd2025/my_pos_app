@@ -49,12 +49,14 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       barcode: null,
     );
     final newItem = CartItem(product: fastPayProduct);
-    emit(state.copyWith(cartItems: [...state.cartItems, newItem])); 
+    emit(state.copyWith(cartItems: [...state.cartItems, newItem], status: BillingStatus.initial)); 
   }
 
   Future<void> _onValidateSale(
       ValidateSale event, Emitter<BillingState> emit) async {
     if (state.cartItems.isEmpty) return;
+
+    emit(state.copyWith(status: BillingStatus.loading));
 
     // 1. Generate Ticket Number (Local & Fast)
     final ticketNumberResult = await getNextTicketNumberUseCase(NoParams());
@@ -72,11 +74,14 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       customerId: event.customerId,
       items: state.cartItems
           .map((item) => sales.SaleItem(
+                id: const Uuid().v4(),
+                saleId: '', // Will be set or not used depending on backend
                 productId: item.product.id,
                 productName: item.product.name,
                 quantity: item.quantity,
-                priceMillimes: CurrencyUtils.toMillimes(item.product.price),
-                purchasePriceMillimes: CurrencyUtils.toMillimes(item.product.purchasePrice),
+                priceAtSaleMillimes: CurrencyUtils.toMillimes(item.product.price),
+                purchasePriceAtSaleMillimes: CurrencyUtils.toMillimes(item.product.purchasePrice),
+                createdAt: DateTime.now(),
               ))
           .toList(),
       totalMillimes: totalMillimes,
@@ -119,10 +124,10 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
         }
       }
 
-      // 6. Clear Cart & Signal Success
-      emit(state.copyWith(cartItems: [])); 
+      // 6. Signal Success WITHOUT clearing cart items (User requested to keep them)
+      emit(state.copyWith(status: BillingStatus.success)); 
     } else {
-      emit(state.copyWith(error: 'Erreur lors de l\'enregistrement de la vente'));
+      emit(state.copyWith(status: BillingStatus.error, error: 'Erreur lors de l\'enregistrement de la vente'));
     }
   }
 
@@ -140,7 +145,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
 
   void _onAddProductToCart(
       AddProductToCartEvent event, Emitter<BillingState> emit) {
-    final cleanState = state.copyWith(error: null);
+    final cleanState = state.copyWith(error: null, status: BillingStatus.initial);
 
     final existingIndex = cleanState.cartItems
         .indexWhere((item) => item.product.id == event.product.id);
@@ -162,7 +167,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     final updatedList = state.cartItems
         .where((item) => item.product.id != event.productId)
         .toList();
-    emit(state.copyWith(cartItems: updatedList));
+    emit(state.copyWith(cartItems: updatedList, status: BillingStatus.initial));
   }
 
   void _onUpdateQuantity(
@@ -177,7 +182,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     if (index >= 0) {
       final items = List<CartItem>.from(state.cartItems);
       items[index] = items[index].copyWith(quantity: event.quantity);
-      emit(state.copyWith(cartItems: items));
+      emit(state.copyWith(cartItems: items, status: BillingStatus.initial));
     }
   }
 
@@ -226,7 +231,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
             .map((item) => {
                   'name': item.productName,
                   'qty': item.quantity,
-                  'price': CurrencyUtils.fromMillimes(item.priceMillimes),
+                  'price': CurrencyUtils.fromMillimes(item.priceAtSaleMillimes),
                   'total': CurrencyUtils.fromMillimes(item.totalMillimes),
                 })
             .toList();

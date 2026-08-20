@@ -2,6 +2,8 @@ import 'package:fpdart/fpdart.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/data/hive_database.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/domain/entities/outbox.dart';
+import '../../../../core/domain/repositories/outbox_repository.dart';
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/payment.dart';
 import '../../domain/entities/ledger_entry.dart';
@@ -13,11 +15,15 @@ import '../models/ledger_entry_model.dart';
 import '../../../../core/utils/normalization_utils.dart';
 
 class CustomerRepositoryImpl implements CustomerRepository {
+  final OutboxRepository outboxRepository;
+
+  CustomerRepositoryImpl({required this.outboxRepository});
+
   @override
   Future<Either<Failure, List<Customer>>> getCustomers() async {
     try {
       final box = HiveDatabase.customerBox;
-      final customers = box.values.map((m) => m.toEntity()).toList();
+      final customers = box.values.where((c) => !c.isDeleted).map((m) => m.toEntity()).toList();
       return Right(customers);
     } catch (e) {
       return Left(CacheFailure(e.toString()));
@@ -29,7 +35,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
     try {
       final box = HiveDatabase.customerBox;
       final model = box.get(id);
-      if (model != null) {
+      if (model != null && !model.isDeleted) {
         return Right(model.toEntity());
       }
       return const Left(CacheFailure('Customer not found'));
@@ -48,6 +54,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
       final normalizedNewPhone = NormalizationUtils.normalizePhone(customer.phone);
       
       final isDuplicate = box.values.any((m) {
+        if (m.isDeleted) return false;
         final normalizedName = NormalizationUtils.normalizeName(m.name);
         final normalizedPhone = NormalizationUtils.normalizePhone(m.phone);
         return normalizedName == normalizedNewName && normalizedPhone == normalizedNewPhone;
@@ -57,7 +64,17 @@ class CustomerRepositoryImpl implements CustomerRepository {
         return const Left(CacheFailure('Ce client existe déjà.'));
       }
 
-      await box.put(customer.id, CustomerModel.fromEntity(customer));
+      final updatedCustomer = customer.copyWith(updatedAt: DateTime.now());
+      await box.put(updatedCustomer.id, CustomerModel.fromEntity(updatedCustomer));
+
+      await outboxRepository.add(Outbox(
+        id: const Uuid().v4(),
+        entityType: 'CUSTOMER',
+        entityId: updatedCustomer.id,
+        operation: OutboxOperation.upsert,
+        createdAt: DateTime.now(),
+      ));
+
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(e.toString()));
@@ -68,7 +85,17 @@ class CustomerRepositoryImpl implements CustomerRepository {
   Future<Either<Failure, void>> updateCustomer(Customer customer) async {
     try {
       final box = HiveDatabase.customerBox;
-      await box.put(customer.id, CustomerModel.fromEntity(customer));
+      final updatedCustomer = customer.copyWith(updatedAt: DateTime.now());
+      await box.put(updatedCustomer.id, CustomerModel.fromEntity(updatedCustomer));
+
+      await outboxRepository.add(Outbox(
+        id: const Uuid().v4(),
+        entityType: 'CUSTOMER',
+        entityId: updatedCustomer.id,
+        operation: OutboxOperation.upsert,
+        createdAt: DateTime.now(),
+      ));
+
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(e.toString()));
@@ -80,7 +107,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
     try {
       final box = HiveDatabase.paymentBox;
       final payments = box.values
-          .where((m) => m.customerId == customerId)
+          .where((m) => m.customerId == customerId && !m.isDeleted)
           .map((m) => m.toEntity())
           .toList();
       return Right(payments);
@@ -96,19 +123,18 @@ class CustomerRepositoryImpl implements CustomerRepository {
       final customerBox = HiveDatabase.customerBox;
       final ledgerBox = HiveDatabase.ledgerBox;
 
-      // Update customer balance
       final customerModel = customerBox.get(payment.customerId);
       if (customerModel == null) return const Left(CacheFailure('Client non trouvé'));
 
       final newBalance = customerModel.balanceMillimes - payment.amountMillimes;
-      final updatedCustomer = customerModel.copyWith(balanceMillimes: newBalance);
+      final updatedCustomer = customerModel.copyWith(balanceMillimes: newBalance, updatedAt: DateTime.now());
+      
+      final updatedPayment = payment.copyWith(updatedAt: DateTime.now());
 
-      // Save payment
-      await paymentBox.put(payment.id, PaymentModel.fromEntity(payment));
+      await paymentBox.put(updatedPayment.id, PaymentModel.fromEntity(updatedPayment));
 
-      // Add to ledger
       final ledgerEntry = LedgerEntry(
-        id: Uuid().v4(),
+        id: const Uuid().v4(),
         paymentId: paymentId,
         customerId: payment.customerId,
         saleId: payment.saleId,
@@ -117,9 +143,15 @@ class CustomerRepositoryImpl implements CustomerRepository {
         createdAt: payment.createdAt,
         note: payment.note,
         balanceAfter: newBalance,
+        updatedAt: DateTime.now(),
       );
       await ledgerBox.put(ledgerEntry.id, LedgerEntryModel.fromEntity(ledgerEntry));
       await customerBox.put(updatedCustomer.id, CustomerModel.fromEntity(updatedCustomer));
+
+      // Add to outbox
+      await outboxRepository.add(Outbox(id: const Uuid().v4(), entityType: 'PAYMENT', entityId: updatedPayment.id, operation: OutboxOperation.upsert, createdAt: DateTime.now()));
+      await outboxRepository.add(Outbox(id: const Uuid().v4(), entityType: 'LEDGER_ENTRY', entityId: ledgerEntry.id, operation: OutboxOperation.upsert, createdAt: DateTime.now()));
+      await outboxRepository.add(Outbox(id: const Uuid().v4(), entityType: 'CUSTOMER', entityId: updatedCustomer.id, operation: OutboxOperation.upsert, createdAt: DateTime.now()));
 
       return const Right(null);
     } catch (e) {
@@ -137,11 +169,10 @@ class CustomerRepositoryImpl implements CustomerRepository {
       if (customerModel == null) return const Left(CacheFailure('Client non trouvé'));
 
       final newBalance = customerModel.balanceMillimes + amountMillimes;
-      final updatedCustomer = customerModel.copyWith(balanceMillimes: newBalance);
+      final updatedCustomer = customerModel.copyWith(balanceMillimes: newBalance, updatedAt: DateTime.now());
 
-      // Add to ledger
       final ledgerEntry = LedgerEntry(
-        id: Uuid().v4(),
+        id: const Uuid().v4(),
         paymentId: paymentId,
         customerId: customerId,
         saleId: saleId,
@@ -150,9 +181,13 @@ class CustomerRepositoryImpl implements CustomerRepository {
         amountMillimes: amountMillimes,
         createdAt: DateTime.now(),
         balanceAfter: newBalance,
+        updatedAt: DateTime.now(),
       );
       await ledgerBox.put(ledgerEntry.id, LedgerEntryModel.fromEntity(ledgerEntry));
       await customerBox.put(updatedCustomer.id, CustomerModel.fromEntity(updatedCustomer));
+
+      await outboxRepository.add(Outbox(id: const Uuid().v4(), entityType: 'LEDGER_ENTRY', entityId: ledgerEntry.id, operation: OutboxOperation.upsert, createdAt: DateTime.now()));
+      await outboxRepository.add(Outbox(id: const Uuid().v4(), entityType: 'CUSTOMER', entityId: updatedCustomer.id, operation: OutboxOperation.upsert, createdAt: DateTime.now()));
 
       return const Right(null);
     } catch (e) {
@@ -165,7 +200,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
     try {
       final box = HiveDatabase.ledgerBox;
       final entries = box.values
-          .where((m) => m.customerId == customerId)
+          .where((m) => m.customerId == customerId && !m.isDeleted)
           .map((m) => m.toEntity())
           .toList();
       entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));

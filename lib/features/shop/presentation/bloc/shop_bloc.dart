@@ -14,30 +14,28 @@ class ShopBloc extends Bloc<ShopEvent, ShopState> {
   ShopBloc({
     required this.getShopUseCase,
     required this.updateShopUseCase,
-  }) : super(ShopInitial()) {
+  }) : super(const ShopState()) {
     on<LoadShopEvent>(_onLoadShop);
     on<UpdateShopEvent>(_onUpdateShop);
   }
 
   Future<void> _onLoadShop(LoadShopEvent event, Emitter<ShopState> emit) async {
-    emit(ShopLoading());
+    emit(state.copyWith(status: ShopStatus.loading));
     final result = await getShopUseCase(NoParams());
     result.fold(
-      (failure) => emit(ShopError(failure.message)),
-      (shop) => emit(ShopLoaded(shop)),
+      (failure) => emit(state.copyWith(status: ShopStatus.error, message: failure.message)),
+      (shop) => emit(state.copyWith(status: ShopStatus.loaded, shop: shop)),
     );
   }
 
   Future<void> _onUpdateShop(
       UpdateShopEvent event, Emitter<ShopState> emit) async {
-    emit(ShopLoading());
+    emit(state.copyWith(status: ShopStatus.loading));
     final result = await updateShopUseCase(event.shop);
     result.fold(
-      (failure) => emit(ShopError(failure.message)),
+      (failure) => emit(state.copyWith(status: ShopStatus.error, message: failure.message)),
       (_) {
-        // Reload shop to update state with latest data (though local is same)
-        add(LoadShopEvent());
-        emit(ShopOperationSuccess());
+        emit(state.copyWith(status: ShopStatus.success, shop: event.shop));
       },
     );
   }

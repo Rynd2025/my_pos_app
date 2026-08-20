@@ -11,6 +11,8 @@ class Product extends Equatable {
   final String? brand;
   final String? category;
   final String? unit;
+  final DateTime? updatedAt;
+  final bool isDeleted;
 
   const Product({
     required this.id,
@@ -23,6 +25,8 @@ class Product extends Equatable {
     this.brand,
     this.category,
     this.unit,
+    this.updatedAt,
+    this.isDeleted = false,
   });
 
   Product copyWith({
@@ -36,6 +40,8 @@ class Product extends Equatable {
     String? brand,
     String? category,
     String? unit,
+    DateTime? updatedAt,
+    bool? isDeleted,
     bool clearBarcode = false,
   }) {
     return Product(
@@ -49,6 +55,8 @@ class Product extends Equatable {
       brand: brand ?? this.brand,
       category: category ?? this.category,
       unit: unit ?? this.unit,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
     );
   }
 
@@ -64,5 +72,7 @@ class Product extends Equatable {
         brand,
         category,
         unit,
+        updatedAt,
+        isDeleted,
       ];
 }

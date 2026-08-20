@@ -537,6 +537,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                 fontSize: 12, color: Colors.grey)),
                       ],
                     ),
+                    if (state.cartItems.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: () => context.read<BillingBloc>().add(ClearCartEvent()),
+                        icon: const Icon(Icons.delete_sweep, size: 18, color: Colors.red),
+                        label: const Text('Vider', style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [

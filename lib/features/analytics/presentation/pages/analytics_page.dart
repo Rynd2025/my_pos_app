@@ -41,16 +41,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       helpText: 'SÉLECTIONNEZ UNE PÉRIODE',
       saveText: 'VALIDER',
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).primaryColor,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
     if (picked != null && picked != _selectedDateRange) {
@@ -164,6 +154,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   List<Sale> _getFilteredSales(List<Sale> allSales) {
     if (_selectedDateRange == null) return allSales;
     
+    // Normalize range to include full days
     final startDate = DateTime(_selectedDateRange!.start.year, _selectedDateRange!.start.month, _selectedDateRange!.start.day, 0, 0, 0);
     final endDateExclusive = DateTime(_selectedDateRange!.end.year, _selectedDateRange!.end.month, _selectedDateRange!.end.day, 23, 59, 59, 999);
 
@@ -237,7 +228,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     const SizedBox(height: 8),
                     ...lowStockProducts.take(3).map((p) => Text('• ${p.name}: ${p.stock} restant(s)', style: const TextStyle(fontSize: 12))),
                     if (lowStockProducts.length > 3)
-                       Text('... et ${lowStockProducts.length - 3} autres', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                       Text('... et ${lowStockProducts.length - 3} others', style: const TextStyle(fontSize: 10, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -272,14 +263,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         final Map<String, int> productSales = {};
         final Map<String, String> productNames = {};
 
-        for (var sale in filteredSales) {
-          for (var item in sale.items) {
-            productSales[item.productId] = (productSales[item.productId] ?? 0) + item.quantity;
-            productNames[item.productId] = item.productName;
+        for (final sale in filteredSales) {
+          for (final item in sale.items) {
+            final String? id = item.productId;
+            if (id != null) {
+              productSales[id] = (productSales[id] ?? 0) + item.quantity;
+              productNames[id] = item.productName;
+            }
           }
         }
 
-        final sortedIds = productSales.keys.toList()..sort((a, b) => productSales[b]!.compareTo(productSales[a]!));
+        final sortedIds = productSales.keys.toList()..sort((a, b) => (productSales[b] ?? 0).compareTo(productSales[a] ?? 0));
 
         if (sortedIds.isEmpty) {
           return const Center(child: Text('Aucune donnée de vente pour cette période', style: TextStyle(fontSize: 12, color: Colors.grey)));
@@ -300,7 +294,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               final id = sortedIds[index];
               return ListTile(
                 title: Text(productNames[id] ?? 'Inconnu', style: const TextStyle(fontSize: 14)),
-                trailing: Text('${productSales[id]} vendus', style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: Text('${productSales[id] ?? 0} vendus', style: const TextStyle(fontWeight: FontWeight.bold)),
               );
             },
           ),

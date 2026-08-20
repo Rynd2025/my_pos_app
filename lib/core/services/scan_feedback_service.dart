@@ -7,7 +7,7 @@ class ScanFeedbackService {
     try {
       await _channel.invokeMethod('beep');
     } on PlatformException catch (e) {
-      print("Failed to play beep: '${e.message}'.");
+      // Ignore errors in production
     }
   }
 }

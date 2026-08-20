@@ -1,4 +1,4 @@
-import 'package:billing_app/core/widgets/primary_button.dart';
+import '../../../../core/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +30,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Customer? _selectedCustomer;
   final TextEditingController _newCustomerNameController = TextEditingController();
   final TextEditingController _newCustomerPhoneController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _newCustomerNameController.dispose();
+    _newCustomerPhoneController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _completeSale(int totalMillimes) {
     int paidMillimes = 0;
@@ -45,7 +54,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   void _showCustomerPicker() {
-    final TextEditingController searchController = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -64,7 +72,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               builder: (context, setPickerState) {
                 return BlocBuilder<CustomerBloc, CustomerState>(
                   builder: (context, state) {
-                    final query = searchController.text.trim().toLowerCase();
+                    final query = _searchController.text.trim().toLowerCase();
                     final filteredCustomers = state.customers.where((c) {
                       if (query.isEmpty) return true;
                       final name = c.name.toLowerCase();
@@ -82,7 +90,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: TextField(
-                            controller: searchController,
+                            controller: _searchController,
+                            autofocus: true,
                             decoration: InputDecoration(
                               hintText: 'Rechercher un client...',
                               prefixIcon: const Icon(Icons.search),
@@ -90,11 +99,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                              suffixIcon: searchController.text.isNotEmpty
+                              suffixIcon: _searchController.text.isNotEmpty
                                   ? IconButton(
                                       icon: const Icon(Icons.clear),
                                       onPressed: () {
-                                        searchController.clear();
+                                        _searchController.clear();
                                         setPickerState(() {});
                                       },
                                     )
@@ -175,6 +184,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     id: Uuid().v4(),
                     name: _newCustomerNameController.text,
                     phone: _newCustomerPhoneController.text.trim().isEmpty ? null : _newCustomerPhoneController.text.trim(),
+                    createdAt: DateTime.now(),
                   );
                   context.read<CustomerBloc>().add(AddCustomer(newCustomer));
                   
@@ -218,7 +228,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
           body: BlocConsumer<BillingBloc, BillingState>(
             listener: (context, state) {
-              if (state.cartItems.isEmpty && !state.isPrinting) {
+              if (state.status == BillingStatus.success) {
                 // Sale was validated, refresh global blocs
                 context.read<ProductBloc>().add(LoadProducts());
                 context.read<SalesBloc>().add(LoadSales());
@@ -230,7 +240,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Vente enregistrée !'),
                     backgroundColor: Colors.blue));
-                context.go('/');
+                
+                context.pop(); 
               }
             },
             builder: (context, billingState) {
@@ -357,13 +368,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             ),
                             const SizedBox(height: 16),
                             PrimaryButton(
-                              onPressed: (_paymentMethod == sales.PaymentMethod.credit && _selectedCustomer == null) 
+                              onPressed: (billingState.status == BillingStatus.success || (_paymentMethod == sales.PaymentMethod.credit && _selectedCustomer == null)) 
                                   ? null 
                                   : () => _completeSale(totalMillimes),
-                              label: 'ENCAISSER',
+                              label: billingState.status == BillingStatus.success ? 'VENTE TERMINÉE' : 'ENCAISSER',
                               icon: Icons.check_circle,
-                              isLoading: billingState.isPrinting,
+                              isLoading: billingState.status == BillingStatus.loading || billingState.isPrinting,
                             ),
+                            if (billingState.status == BillingStatus.success)
+                              TextButton(
+                                onPressed: () {
+                                  context.read<BillingBloc>().add(ClearCartEvent());
+                                  context.pop();
+                                },
+                                child: const Text('COMMENCER NOUVELLE VENTE'),
+                              ),
                           ],
                         ),
                       ),

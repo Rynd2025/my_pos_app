@@ -1,9 +1,11 @@
 import 'package:hive/hive.dart';
+import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/ledger_entry.dart';
 
 part 'ledger_entry_model.g.dart';
 
 @HiveType(typeId: 6)
+@JsonSerializable()
 class LedgerEntryModel extends LedgerEntry {
   @override
   @HiveField(0)
@@ -28,13 +30,19 @@ class LedgerEntryModel extends LedgerEntry {
   final String? note;
   @override
   @HiveField(7)
-  final String paymentId;
+  final String? paymentId;
   @override
   @HiveField(8)
   final String? ticketNumber;
   @override
   @HiveField(9)
   final int balanceAfter;
+  @override
+  @HiveField(10)
+  final DateTime? updatedAt;
+  @override
+  @HiveField(11)
+  final bool isDeleted;
 
   LedgerEntryModel({
     required this.id,
@@ -44,9 +52,11 @@ class LedgerEntryModel extends LedgerEntry {
     required this.amountMillimes,
     required this.createdAt,
     this.note,
-    required this.paymentId,
+    this.paymentId,
     this.ticketNumber,
     required this.balanceAfter,
+    this.updatedAt,
+    this.isDeleted = false,
   }) : super(
           id: id,
           customerId: customerId,
@@ -58,6 +68,8 @@ class LedgerEntryModel extends LedgerEntry {
           paymentId: paymentId,
           ticketNumber: ticketNumber,
           balanceAfter: balanceAfter,
+          updatedAt: updatedAt,
+          isDeleted: isDeleted,
         );
 
   factory LedgerEntryModel.fromEntity(LedgerEntry entry) {
@@ -72,6 +84,8 @@ class LedgerEntryModel extends LedgerEntry {
       paymentId: entry.paymentId,
       ticketNumber: entry.ticketNumber,
       balanceAfter: entry.balanceAfter,
+      updatedAt: entry.updatedAt,
+      isDeleted: entry.isDeleted,
     );
   }
 
@@ -87,6 +101,11 @@ class LedgerEntryModel extends LedgerEntry {
       createdAt: createdAt,
       note: note,
       balanceAfter: balanceAfter,
+      updatedAt: updatedAt,
+      isDeleted: isDeleted,
     );
   }
+
+  factory LedgerEntryModel.fromJson(Map<String, dynamic> json) => _$LedgerEntryModelFromJson(json);
+  Map<String, dynamic> toJson() => _$LedgerEntryModelToJson(this);
 }

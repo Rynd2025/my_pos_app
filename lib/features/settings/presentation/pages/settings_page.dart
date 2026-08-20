@@ -75,10 +75,9 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
               child: BlocBuilder<ShopBloc, ShopState>(
                 builder: (context, state) {
-                  String shopName = 'Elite Groceries';
+                  String shopName = state.shop.name.isNotEmpty ? state.shop.name : 'Elite Groceries';
                   String initials = 'EG';
-                  if (state is ShopLoaded && state.shop.name.isNotEmpty) {
-                    shopName = state.shop.name;
+                  if (state.shop.name.isNotEmpty) {
                     final parts = shopName.split(' ');
                     initials = parts
                         .take(2)
@@ -139,6 +138,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: 'Shop Details',
                   subtitle: 'Edit business info & address',
                   onTap: () => context.push('/shop'),
+                ),
+                _buildDivider(),
+                _buildListItem(
+                  icon: Icons.devices,
+                  title: 'Authorized Devices',
+                  subtitle: 'Manage devices for this shop',
+                  onTap: () => context.push('/settings/devices'),
                 ),
                 _buildDivider(),
                 BlocBuilder<ProductBloc, ProductState>(

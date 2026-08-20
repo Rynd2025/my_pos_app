@@ -1,30 +1,26 @@
 import 'package:fpdart/fpdart.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/data/hive_database.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/domain/entities/outbox.dart';
+import '../../../../core/domain/repositories/outbox_repository.dart';
 import '../../domain/entities/shop.dart';
 import '../../domain/repositories/shop_repository.dart';
 import '../models/shop_model.dart';
 
 class ShopRepositoryImpl implements ShopRepository {
-  static const String shopKey = 'shop_details';
+  final OutboxRepository outboxRepository;
+
+  ShopRepositoryImpl({required this.outboxRepository});
 
   @override
   Future<Either<Failure, Shop>> getShop() async {
     try {
       final box = HiveDatabase.shopBox;
-      final shop = box.get(shopKey);
-      if (shop != null) {
-        return Right(shop);
-      } else {
-        // Return default shop if not found
-        return const Right(Shop(
-            name: 'RAMA Shop',
-            addressLine1: 'Sousse, Kk',
-            addressLine2: 'Citee Nouvelle- 4060',
-            phoneNumber: '+216 93969959',
-            upiId: 'rahmabenseghaier@gmail.com',
-            footerText: 'Thank you, Visit again!!!'));
+      if (box.isEmpty) {
+        return const Right(Shop());
       }
+      return Right(box.values.first.toEntity());
     } catch (e) {
       return Left(CacheFailure(e.toString()));
     }
@@ -34,8 +30,21 @@ class ShopRepositoryImpl implements ShopRepository {
   Future<Either<Failure, void>> updateShop(Shop shop) async {
     try {
       final box = HiveDatabase.shopBox;
-      final model = ShopModel.fromEntity(shop);
-      await box.put(shopKey, model);
+      final updatedShop = shop.copyWith(updatedAt: DateTime.now());
+      final model = ShopModel.fromEntity(updatedShop);
+      
+      // Assume one shop for now, use fixed key or shop ID
+      final key = model.id.isEmpty ? 'current_shop' : model.id;
+      await box.put(key, model);
+
+      await outboxRepository.add(Outbox(
+        id: const Uuid().v4(),
+        entityType: 'SHOP',
+        entityId: model.id,
+        operation: OutboxOperation.upsert,
+        createdAt: DateTime.now(),
+      ));
+
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(e.toString()));

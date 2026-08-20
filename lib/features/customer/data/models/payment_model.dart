@@ -1,9 +1,11 @@
 import 'package:hive/hive.dart';
+import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/payment.dart';
 
 part 'payment_model.g.dart';
 
 @HiveType(typeId: 5)
+@JsonSerializable()
 class PaymentModel extends Payment {
   @override
   @HiveField(0)
@@ -26,6 +28,12 @@ class PaymentModel extends Payment {
   @override
   @HiveField(6)
   final String? note;
+  @override
+  @HiveField(7)
+  final DateTime? updatedAt;
+  @override
+  @HiveField(8)
+  final bool isDeleted;
 
   PaymentModel({
     required this.id,
@@ -35,6 +43,8 @@ class PaymentModel extends Payment {
     required this.createdAt,
     required this.paymentMethod,
     this.note,
+    this.updatedAt,
+    this.isDeleted = false,
   }) : super(
           id: id,
           customerId: customerId,
@@ -43,6 +53,8 @@ class PaymentModel extends Payment {
           createdAt: createdAt,
           paymentMethod: paymentMethod,
           note: note,
+          updatedAt: updatedAt,
+          isDeleted: isDeleted,
         );
 
   factory PaymentModel.fromEntity(Payment payment) {
@@ -54,6 +66,8 @@ class PaymentModel extends Payment {
       createdAt: payment.createdAt,
       paymentMethod: payment.paymentMethod,
       note: payment.note,
+      updatedAt: payment.updatedAt,
+      isDeleted: payment.isDeleted,
     );
   }
 
@@ -66,6 +80,11 @@ class PaymentModel extends Payment {
       createdAt: createdAt,
       paymentMethod: paymentMethod,
       note: note,
+      updatedAt: updatedAt,
+      isDeleted: isDeleted,
     );
   }
+
+  factory PaymentModel.fromJson(Map<String, dynamic> json) => _$PaymentModelFromJson(json);
+  Map<String, dynamic> toJson() => _$PaymentModelToJson(this);
 }

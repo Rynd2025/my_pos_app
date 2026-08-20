@@ -1,4 +1,8 @@
 import 'package:get_it/get_it.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+
 import '../../features/product/data/repositories/product_repository_impl.dart';
 import '../../features/product/domain/repositories/product_repository.dart';
 import '../../features/product/domain/usecases/product_usecases.dart';
@@ -19,19 +23,65 @@ import '../../features/customer/domain/repositories/customer_repository.dart';
 import '../../features/customer/domain/usecases/customer_usecases.dart';
 import '../../features/customer/presentation/bloc/customer_bloc.dart';
 import '../../features/billing/presentation/bloc/billing_bloc.dart';
-
-import 'package:http/http.dart' as http;
 import '../../features/product/data/repositories/product_import_repository_impl.dart';
 import '../../features/product/domain/repositories/product_import_repository.dart';
+
+import 'domain/repositories/outbox_repository.dart';
+import 'data/repositories/outbox_repository_impl.dart';
+import 'network/auth_interceptor.dart';
+import 'services/sync_service.dart';
+
+import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/data/datasources/auth_remote_data_source.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+
+import '../../features/sync/domain/repositories/sync_repository.dart';
+import '../../features/sync/data/repositories/sync_repository_impl.dart';
+import '../../features/sync/data/datasources/sync_remote_data_source.dart';
+import '../../features/sync/presentation/bloc/sync_bloc.dart';
 
 final sl = GetIt.instance;
 
 Future<void> init() async {
-  // External
+  // Core
+  sl.registerLazySingleton(() => const FlutterSecureStorage());
+  
+  sl.registerLazySingleton(() {
+    final dio = Dio(BaseOptions(
+      baseUrl: String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8000'),
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+    ));
+    dio.interceptors.add(AuthInterceptor(secureStorage: sl()));
+    return dio;
+  });
+
   sl.registerLazySingleton(() => http.Client());
 
+  sl.registerLazySingleton(() => SyncService());
+
+  sl.registerLazySingleton<OutboxRepository>(() => OutboxRepositoryImpl());
+
+  // Features - Auth
+  sl.registerFactory(() => AuthBloc(authRepository: sl()));
+  sl.registerLazySingleton<AuthRemoteDataSource>(
+    () => AuthRemoteDataSourceImpl(dio: sl()),
+  );
+  sl.registerLazySingleton<AuthRepository>(
+    () => AuthRepositoryImpl(remoteDataSource: sl(), secureStorage: sl()),
+  );
+
+  // Features - Sync
+  sl.registerFactory(() => SyncBloc(syncRepository: sl()));
+  sl.registerLazySingleton<SyncRemoteDataSource>(
+    () => SyncRemoteDataSourceImpl(dio: sl()),
+  );
+  sl.registerLazySingleton<SyncRepository>(
+    () => SyncRepositoryImpl(remoteDataSource: sl(), outboxRepository: sl()),
+  );
+
   // Features - Product
-  // Bloc
   sl.registerFactory(
     () => ProductBloc(
       getProductsUseCase: sl(),
@@ -41,26 +91,45 @@ Future<void> init() async {
       productImportRepository: sl(),
     ),
   );
+  sl.registerLazySingleton(() => GetProductsUseCase(sl()));
+  sl.registerLazySingleton(() => AddProductUseCase(sl()));
+  sl.registerLazySingleton(() => UpdateProductUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteProductUseCase(sl()));
+  sl.registerLazySingleton(() => GetProductByBarcodeUseCase(sl()));
+  sl.registerLazySingleton<ProductRepository>(
+    () => ProductRepositoryImpl(outboxRepository: sl()),
+  );
+  sl.registerLazySingleton<ProductImportRepository>(
+    () => ProductImportRepositoryImpl(client: sl()),
+  );
 
+  // Features - Shop
   sl.registerFactory(
     () => ShopBloc(
       getShopUseCase: sl(),
       updateShopUseCase: sl(),
     ),
   );
-
-  sl.registerFactory(
-    () => PrinterBloc(
-      repository: sl(),
-    ),
+  sl.registerLazySingleton(() => GetShopUseCase(sl()));
+  sl.registerLazySingleton(() => UpdateShopUseCase(sl()));
+  sl.registerLazySingleton<ShopRepository>(
+    () => ShopRepositoryImpl(outboxRepository: sl()),
   );
 
+  // Features - Sales
   sl.registerFactory(
     () => SalesBloc(
       getSalesUseCase: sl(),
     ),
   );
+  sl.registerLazySingleton(() => GetSalesUseCase(sl()));
+  sl.registerLazySingleton(() => SaveSaleUseCase(sl()));
+  sl.registerLazySingleton(() => GetNextTicketNumberUseCase(sl()));
+  sl.registerLazySingleton<SaleRepository>(
+    () => SaleRepositoryImpl(outboxRepository: sl()),
+  );
 
+  // Features - Customer
   sl.registerFactory(
     () => CustomerBloc(
       getCustomersUseCase: sl(),
@@ -69,7 +138,18 @@ Future<void> init() async {
       getLedgerUseCase: sl(),
     ),
   );
+  sl.registerLazySingleton(() => GetCustomersUseCase(sl()));
+  sl.registerLazySingleton(() => CreateCustomerUseCase(sl()));
+  sl.registerLazySingleton(() => UpdateCustomerUseCase(sl()));
+  sl.registerLazySingleton(() => RecordPaymentUseCase(sl()));
+  sl.registerLazySingleton(() => GetCustomerPaymentsUseCase(sl()));
+  sl.registerLazySingleton(() => GetLedgerUseCase(sl()));
+  sl.registerLazySingleton(() => AddDebtUseCase(sl()));
+  sl.registerLazySingleton<CustomerRepository>(
+    () => CustomerRepositoryImpl(outboxRepository: sl()),
+  );
 
+  // Features - Billing
   sl.registerFactory(
     () => BillingBloc(
       getProductByBarcodeUseCase: sl(),
@@ -80,53 +160,12 @@ Future<void> init() async {
     ),
   );
 
-  // Use cases
-  sl.registerLazySingleton(() => GetProductsUseCase(sl()));
-  sl.registerLazySingleton(() => AddProductUseCase(sl()));
-  sl.registerLazySingleton(() => UpdateProductUseCase(sl()));
-  sl.registerLazySingleton(() => DeleteProductUseCase(sl()));
-  sl.registerLazySingleton(() => GetProductByBarcodeUseCase(sl()));
-
-  sl.registerLazySingleton(() => GetSalesUseCase(sl()));
-  sl.registerLazySingleton(() => SaveSaleUseCase(sl()));
-  sl.registerLazySingleton(() => GetNextTicketNumberUseCase(sl()));
-
-  sl.registerLazySingleton(() => GetCustomersUseCase(sl()));
-  sl.registerLazySingleton(() => CreateCustomerUseCase(sl()));
-  sl.registerLazySingleton(() => UpdateCustomerUseCase(sl()));
-  sl.registerLazySingleton(() => RecordPaymentUseCase(sl()));
-  sl.registerLazySingleton(() => GetCustomerPaymentsUseCase(sl()));
-  sl.registerLazySingleton(() => GetLedgerUseCase(sl()));
-  sl.registerLazySingleton(() => AddDebtUseCase(sl()));
-
-  // Repository
-  sl.registerLazySingleton<ProductRepository>(
-    () => ProductRepositoryImpl(),
-  );
-
-  sl.registerLazySingleton<ProductImportRepository>(
-    () => ProductImportRepositoryImpl(client: sl()),
-  );
-
-  sl.registerLazySingleton<SaleRepository>(
-    () => SaleRepositoryImpl(),
-  );
-
-  sl.registerLazySingleton<CustomerRepository>(
-    () => CustomerRepositoryImpl(),
-  );
-
-  // Features - Shop
-  // Use cases
-  sl.registerLazySingleton(() => GetShopUseCase(sl()));
-  sl.registerLazySingleton(() => UpdateShopUseCase(sl()));
-
-  // Repository
-  sl.registerLazySingleton<ShopRepository>(
-    () => ShopRepositoryImpl(),
-  );
-
   // Features - Settings / Printer
+  sl.registerFactory(
+    () => PrinterBloc(
+      repository: sl(),
+    ),
+  );
   sl.registerLazySingleton<PrinterRepository>(
     () => PrinterRepositoryImpl(),
   );

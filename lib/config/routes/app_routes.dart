@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/billing/presentation/pages/home_page.dart';
 import '../../features/product/presentation/pages/product_list_page.dart';
@@ -5,6 +7,7 @@ import '../../features/product/presentation/pages/add_product_page.dart';
 import '../../features/product/presentation/pages/edit_product_page.dart';
 import '../../features/shop/presentation/pages/shop_details_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/settings/presentation/pages/devices_page.dart';
 import '../../features/billing/presentation/pages/scanner_page.dart';
 import '../../features/billing/presentation/pages/checkout_page.dart';
 import '../../features/billing/presentation/pages/product_search_page.dart';
@@ -15,10 +18,29 @@ import '../../features/product/domain/entities/product.dart';
 import '../../features/sales/presentation/pages/sales_history_page.dart';
 import '../../features/customer/presentation/pages/customer_list_page.dart';
 import '../../features/customer/presentation/pages/customer_details_page.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/auth_state.dart';
+import '../../features/auth/presentation/pages/login_page.dart';
 
 final router = GoRouter(
   initialLocation: '/',
+  redirect: (context, state) {
+    final authState = context.read<AuthBloc>().state;
+    final bool loggingIn = state.matchedLocation == '/login';
+
+    if (authState.status == AuthStatus.initial) return null;
+    if (authState.status != AuthStatus.authenticated && authState.status != AuthStatus.unauthorized) {
+      return loggingIn ? null : '/login';
+    }
+    if (loggingIn) return '/';
+
+    return null;
+  },
   routes: [
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginPage(),
+    ),
     GoRoute(
       path: '/',
       builder: (context, state) => const HomePage(),
@@ -57,6 +79,12 @@ final router = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsPage(),
+      routes: [
+        GoRoute(
+          path: 'devices',
+          builder: (context, state) => const DevicesPage(),
+        ),
+      ],
     ),
     GoRoute(
       path: '/analytics',
