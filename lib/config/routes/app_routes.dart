@@ -9,8 +9,34 @@ import '../../features/billing/presentation/pages/scanner_page.dart';
 import '../../features/billing/presentation/pages/checkout_page.dart';
 import '../../features/product/domain/entities/product.dart';
 
+// Auth screens
+import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/register_screen.dart';
+import '../../features/auth/screens/forgot_password_screen.dart';
+
+// HiveDatabase for session flag
+import '../../core/data/hive_database.dart';
+
 final router = GoRouter(
   initialLocation: '/',
+  // Redirects based on a simple Hive-stored session flag 'is_logged_in'
+  redirect: (context, state) {
+    final bool loggedIn =
+        HiveDatabase.settingsBox.get('is_logged_in', defaultValue: false) as bool;
+    final loggingIn = state.subloc == '/login' ||
+        state.subloc == '/register' ||
+        state.subloc == '/forgot';
+
+    if (!loggedIn && !loggingIn) {
+      // not logged in -> send to login
+      return '/login';
+    }
+    if (loggedIn && loggingIn) {
+      // logged in but on an auth page -> go home
+      return '/';
+    }
+    return null;
+  },
   routes: [
     GoRoute(
       path: '/',
@@ -55,5 +81,10 @@ final router = GoRouter(
       path: '/shop',
       builder: (context, state) => const ShopDetailsPage(),
     ),
+
+    // Auth routes (public)
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
+    GoRoute(path: '/forgot', builder: (context, state) => const ForgotPasswordScreen()),
   ],
 );
