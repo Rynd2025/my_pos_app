@@ -111,6 +111,11 @@ class PrinterHelper {
     required List<Map<String, dynamic>> items, // Name, Qty, Price, Total
     required double total,
     required String footer,
+    String? ticketNumber,
+    String? paymentMethod,
+    double? paidAmount,
+    double? dueAmount,
+    String? customerName,
   }) async {
     if (!_isConnected) return;
 
@@ -126,6 +131,13 @@ class PrinterHelper {
     bytes += EscPos.textLarge;
     bytes += _textToBytes(shopName);
     bytes += EscPos.lineFeed;
+
+    // Ticket Number
+    if (ticketNumber != null) {
+      bytes += EscPos.textNormal;
+      bytes += _textToBytes('Ticket: $ticketNumber');
+      bytes += EscPos.lineFeed;
+    }
 
     // Address & Phone (Normal, Center)
     bytes += EscPos.textNormal;
@@ -152,7 +164,7 @@ class PrinterHelper {
 
     // Header (Align Left)
     bytes += EscPos.alignLeft;
-    bytes += _textToBytes('Item            Price   Total');
+    bytes += _textToBytes('Item            Prix    Total');
     bytes += EscPos.lineFeed;
     bytes += _textToBytes('--------------------------------');
     bytes += EscPos.lineFeed;
@@ -178,9 +190,27 @@ class PrinterHelper {
     // Total (Align Right)
     bytes += EscPos.alignRight;
     bytes += EscPos.boldOn;
-    bytes += _textToBytes('TOTAL: $total');
+    bytes += _textToBytes('TOTAL: ${total.toStringAsFixed(3)} DT');
     bytes += EscPos.lineFeed;
     bytes += EscPos.boldOff;
+
+    if (paymentMethod != null) {
+      bytes += _textToBytes('Paiement: $paymentMethod');
+      bytes += EscPos.lineFeed;
+    }
+    if (customerName != null) {
+      bytes += _textToBytes('Client: $customerName');
+      bytes += EscPos.lineFeed;
+    }
+    if (paidAmount != null) {
+      bytes += _textToBytes('Payé: ${paidAmount.toStringAsFixed(3)} DT');
+      bytes += EscPos.lineFeed;
+    }
+    if (dueAmount != null && dueAmount > 0) {
+      bytes += _textToBytes('Dû: ${dueAmount.toStringAsFixed(3)} DT');
+      bytes += EscPos.lineFeed;
+    }
+
     bytes += EscPos.lineFeed;
 
     // Footer (Center)

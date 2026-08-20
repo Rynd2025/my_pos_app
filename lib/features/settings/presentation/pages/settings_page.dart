@@ -5,6 +5,7 @@ import 'package:app_settings/app_settings.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
 import '../bloc/printer_bloc.dart';
 import '../bloc/printer_event.dart';
 import '../bloc/printer_state.dart';
@@ -22,6 +23,31 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     // Re-initialize printer state whenever settings page opens
     context.read<PrinterBloc>().add(InitPrinterEvent());
+  }
+
+  void _showImportConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Importer des produits ?'),
+          content: const Text(
+              'Cela va télécharger les produits tunisiens depuis Open Food Facts. Cette opération peut prendre du temps.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () {
+                context.read<ProductBloc>().add(ImportTunisianProducts());
+                Navigator.pop(context);
+              },
+              child: const Text('Démarrer'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -113,6 +139,23 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: 'Shop Details',
                   subtitle: 'Edit business info & address',
                   onTap: () => context.push('/shop'),
+                ),
+                _buildDivider(),
+                BlocBuilder<ProductBloc, ProductState>(
+                  builder: (context, state) {
+                    final isImporting = state.status == ProductStatus.loading && state.importProgress > 0;
+                    return _buildListItem(
+                      icon: isImporting ? Icons.sync : Icons.download_rounded,
+                      title: 'Importer Produits Tunisiens',
+                      subtitle: isImporting 
+                          ? 'Importation: ${(state.importProgress * 100).toInt()}%'
+                          : 'Open Food Facts (Tunisie)',
+                      trailingWidget: isImporting 
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                          : null,
+                      onTap: isImporting ? null : () => _showImportConfirmation(context),
+                    );
+                  },
                 ),
               ],
             ),

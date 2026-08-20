@@ -6,29 +6,29 @@ class ProductState extends Equatable {
   final ProductStatus status;
   final List<Product> products;
   final String? message;
+  final double importProgress;
 
   const ProductState({
     this.status = ProductStatus.initial,
     this.products = const [],
     this.message,
+    this.importProgress = 0,
   });
 
   ProductState copyWith({
     ProductStatus? status,
     List<Product>? products,
     String? message,
+    double? importProgress,
   }) {
     return ProductState(
       status: status ?? this.status,
       products: products ?? this.products,
-      message:
-          message, // Allow clearing message if not passed? No, usually distinct event.
-      // But for copyWith, let's say if message passed is null, we keep it?
-      // Or we want to set it to null?
-      // Let's assume transient message.
+      message: message,
+      importProgress: importProgress ?? this.importProgress,
     );
   }
 
   @override
-  List<Object?> get props => [status, products, message];
+  List<Object?> get props => [status, products, message, importProgress];
 }

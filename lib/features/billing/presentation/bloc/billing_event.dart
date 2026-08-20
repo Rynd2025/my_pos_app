@@ -3,7 +3,7 @@ part of 'billing_bloc.dart';
 abstract class BillingEvent extends Equatable {
   const BillingEvent();
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class ScanBarcodeEvent extends BillingEvent {
@@ -37,12 +37,35 @@ class UpdateQuantityEvent extends BillingEvent {
 
 class ClearCartEvent extends BillingEvent {}
 
+class FastPayEvent extends BillingEvent {
+  final double amount;
+  const FastPayEvent(this.amount);
+  @override
+  List<Object?> get props => [amount];
+}
+
+class ValidateSale extends BillingEvent {
+  final sales.PaymentMethod paymentMethod;
+  final String? customerId;
+  final int paidMillimes;
+
+  const ValidateSale({
+    required this.paymentMethod,
+    this.customerId,
+    this.paidMillimes = 0,
+  });
+
+  @override
+  List<Object?> get props => [paymentMethod, customerId, paidMillimes];
+}
+
 class PrintReceiptEvent extends BillingEvent {
   final String shopName;
   final String address1;
   final String address2;
   final String phone;
   final String footer;
+  final sales.Sale? sale; // Pass the actual sale for detailed info
 
   const PrintReceiptEvent({
     required this.shopName,
@@ -50,8 +73,9 @@ class PrintReceiptEvent extends BillingEvent {
     required this.address2,
     required this.phone,
     required this.footer,
+    this.sale,
   });
 
   @override
-  List<Object> get props => [shopName, address1, address2, phone, footer];
+  List<Object?> get props => [shopName, address1, address2, phone, footer, sale];
 }

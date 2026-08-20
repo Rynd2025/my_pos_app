@@ -7,7 +7,14 @@ import '../../features/shop/presentation/pages/shop_details_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/billing/presentation/pages/scanner_page.dart';
 import '../../features/billing/presentation/pages/checkout_page.dart';
+import '../../features/billing/presentation/pages/product_search_page.dart';
+import '../../features/analytics/presentation/pages/analytics_page.dart';
+import '../../features/product/presentation/pages/inventory_filling_page.dart';
 import '../../features/product/domain/entities/product.dart';
+
+import '../../features/sales/presentation/pages/sales_history_page.dart';
+import '../../features/customer/presentation/pages/customer_list_page.dart';
+import '../../features/customer/presentation/pages/customer_details_page.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -24,6 +31,27 @@ final router = GoRouter(
           path: 'checkout',
           builder: (context, state) => const CheckoutPage(),
         ),
+        GoRoute(
+          path: 'search',
+          builder: (context, state) => const ProductSearchPage(),
+        ),
+        GoRoute(
+          path: 'sales',
+          builder: (context, state) => const SalesHistoryPage(),
+        ),
+        GoRoute(
+          path: 'customers',
+          builder: (context, state) => const CustomerListPage(),
+          routes: [
+            GoRoute(
+              path: ':id',
+              builder: (context, state) {
+                final id = state.pathParameters['id']!;
+                return CustomerDetailsPage(customerId: id);
+              },
+            ),
+          ],
+        ),
       ],
     ),
     GoRoute(
@@ -31,12 +59,23 @@ final router = GoRouter(
       builder: (context, state) => const SettingsPage(),
     ),
     GoRoute(
+      path: '/analytics',
+      builder: (context, state) => const AnalyticsPage(),
+    ),
+    GoRoute(
       path: '/products',
       builder: (context, state) => const ProductListPage(),
       routes: [
         GoRoute(
           path: 'add',
-          builder: (context, state) => const AddProductPage(),
+          builder: (context, state) {
+            final initialBarcode = state.extra as String?;
+            return AddProductPage(initialBarcode: initialBarcode);
+          },
+        ),
+        GoRoute(
+          path: 'fill',
+          builder: (context, state) => const InventoryFillingPage(),
         ),
         GoRoute(
           path: 'edit/:id',

@@ -10,10 +10,20 @@ import 'features/shop/presentation/bloc/shop_bloc.dart';
 import 'features/settings/presentation/bloc/printer_bloc.dart';
 import 'features/settings/presentation/bloc/printer_event.dart';
 
+import 'features/sales/presentation/bloc/sales_bloc.dart';
+import 'features/sales/presentation/bloc/sales_event.dart';
+import 'features/customer/presentation/bloc/customer_bloc.dart';
+import 'features/customer/presentation/bloc/customer_event.dart';
+import 'core/services/catalog_import_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await HiveDatabase.init();
   await di.init();
+  
+  // Background import if needed
+  CatalogImportService.importIfNeeded();
+  
   runApp(const MyApp());
 }
 
@@ -29,10 +39,13 @@ class MyApp extends StatelessWidget {
         BlocProvider<ShopBloc>(
             create: (context) => di.sl<ShopBloc>()..add(LoadShopEvent())),
         BlocProvider<BillingBloc>(
-            create: (context) =>
-                BillingBloc(getProductByBarcodeUseCase: di.sl())),
+            create: (context) => di.sl<BillingBloc>()),
         BlocProvider<PrinterBloc>(
             create: (context) => di.sl<PrinterBloc>()..add(InitPrinterEvent())),
+        BlocProvider<SalesBloc>(
+            create: (context) => di.sl<SalesBloc>()..add(LoadSales())),
+        BlocProvider<CustomerBloc>(
+            create: (context) => di.sl<CustomerBloc>()..add(LoadCustomers())),
       ],
       child: MaterialApp.router(
         title: 'Billing App',

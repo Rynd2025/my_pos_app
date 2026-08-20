@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../bloc/product_bloc.dart';
 import '../../domain/entities/product.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/app_validators.dart';
+import '../../../../core/utils/currency_utils.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -20,6 +20,7 @@ class _ProductListPageState extends State<ProductListPage> {
   @override
   void initState() {
     super.initState();
+    context.read<ProductBloc>().add(LoadProducts());
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.toLowerCase();
@@ -36,14 +37,8 @@ class _ProductListPageState extends State<ProductListPage> {
   void _scanQR(List<Product> products) async {
     final barcode = await context.push<String>('/scanner');
     if (barcode != null && barcode.isNotEmpty) {
-      final matchedProduct =
-          products.where((p) => p.barcode == barcode).firstOrNull;
-      if (matchedProduct != null) {
-        _searchController.text = matchedProduct.name;
-      } else {
-        _searchController.text =
-            barcode; // If not found, just put barcode in search
-      }
+      // Always use barcode for search to ensure exact matching and disambiguation
+      _searchController.text = barcode;
     }
   }
 
@@ -56,13 +51,27 @@ class _ProductListPageState extends State<ProductListPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.chevron_left,
-              size: 28, color: Theme.of(context).primaryColor),
+          icon: const Icon(Icons.chevron_left,
+              size: 28, color: AppTheme.primaryColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Product Management',
+        title: const Text('Gestion des Produits',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(30),
+          child: BlocBuilder<ProductBloc, ProductState>(
+            builder: (context, state) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  '${state.products.length} produits enregistrés',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                ),
+              );
+            },
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -81,14 +90,12 @@ class _ProductListPageState extends State<ProductListPage> {
                           controller: _searchController,
                           textCapitalization: TextCapitalization.words,
                           decoration: InputDecoration(
-                            hintText: 'Scan or enter barcode',
+                            hintText: 'Rechercher par nom ou code...',
                             prefixIcon: Icon(
                               Icons.search,
                               color: Colors.grey[400],
                             ),
                           ),
-                          validator:
-                              AppValidators.required('Please enter a barcode'),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -106,9 +113,6 @@ class _ProductListPageState extends State<ProductListPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  const Text('Tap the icon to open camera scanner',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF4C669A))),
                 ],
               );
             }),
@@ -141,21 +145,22 @@ class _ProductListPageState extends State<ProductListPage> {
 
                 if (state.products.isEmpty) {
                   if (state.status == ProductStatus.error) {
-                    return Center(child: Text('Error: ${state.message}'));
+                    return Center(child: Text('Erreur: ${state.message}'));
                   }
                   return const Center(
-                      child: Text('No products found. Add some!'));
+                      child: Text('Aucun produit trouvé. Ajoutez-en !'));
                 }
 
                 final filteredProducts = state.products
                     .where((product) =>
                         product.name.toLowerCase().contains(_searchQuery) ||
-                        product.barcode.toLowerCase().contains(_searchQuery))
+                        (product.barcode?.toLowerCase().contains(_searchQuery) ?? false) ||
+                        (product.brand?.toLowerCase().contains(_searchQuery) ?? false))
                     .toList();
 
                 if (filteredProducts.isEmpty) {
                   return const Center(
-                      child: Text('No products match your search.'));
+                      child: Text('Aucun produit ne correspond à votre recherche.'));
                 }
 
                 return ListView.separated(
@@ -192,12 +197,45 @@ class _ProductListPageState extends State<ProductListPage> {
                                       fontWeight: FontWeight.w600,
                                       fontSize: 16),
                                 ),
+                                if (product.brand != null || product.barcode != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2.0),
+                                    child: Text(
+                                      '${product.brand ?? ''}${product.brand != null && product.barcode != null ? ' • ' : ''}${product.barcode ?? ''}',
+                                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                    ),
+                                  ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  '₹${product.price.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.grey[600]),
+                                Row(
+                                  children: [
+                                    Text(
+                                      CurrencyUtils.format(product.price),
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey[600]),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: product.stock <= (product.lowStockThreshold ?? 5) ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Stock: ${product.stock}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: product.stock <= (product.lowStockThreshold ?? 5) ? Colors.red : Colors.blue,
+                                        ),
+                                      ),
+                                    ),
+                                    if (product.stock <= (product.lowStockThreshold ?? 5))
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 4.0),
+                                        child: Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red),
+                                      ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -249,12 +287,14 @@ class _ProductListPageState extends State<ProductListPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/products/add'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, size: 32),
+      floatingActionButton: SafeArea(
+        child: FloatingActionButton(
+          onPressed: () => context.push('/products/add'),
+          backgroundColor: AppTheme.primaryColor,
+          foregroundColor: Colors.white,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, size: 32),
+        ),
       ),
     );
   }
@@ -264,19 +304,19 @@ class _ProductListPageState extends State<ProductListPage> {
       context: context,
       builder: (innerContext) {
         return AlertDialog(
-          title: const Text('Delete Product'),
-          content: Text('Are you sure you want to delete ${product.name}?'),
+          title: const Text('Supprimer le Produit'),
+          content: Text('Êtes-vous sûr de vouloir supprimer ${product.name} ?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(innerContext),
-              child: const Text('Cancel'),
+              child: const Text('Annuler'),
             ),
             TextButton(
               onPressed: () {
                 context.read<ProductBloc>().add(DeleteProduct(product.id));
                 Navigator.pop(innerContext);
               },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
             ),
           ],
         );

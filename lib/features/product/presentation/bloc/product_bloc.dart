@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/usecases/product_usecases.dart';
 import '../../../../core/usecase/usecase.dart';
+import '../../domain/repositories/product_import_repository.dart';
 
 part 'product_event.dart';
 part 'product_state.dart';
@@ -12,17 +13,20 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
   final AddProductUseCase addProductUseCase;
   final UpdateProductUseCase updateProductUseCase;
   final DeleteProductUseCase deleteProductUseCase;
+  final ProductImportRepository productImportRepository;
 
   ProductBloc({
     required this.getProductsUseCase,
     required this.addProductUseCase,
     required this.updateProductUseCase,
     required this.deleteProductUseCase,
+    required this.productImportRepository,
   }) : super(const ProductState()) {
     on<LoadProducts>(_onLoadProducts);
     on<AddProduct>(_onAddProduct);
     on<UpdateProduct>(_onUpdateProduct);
     on<DeleteProduct>(_onDeleteProduct);
+    on<ImportTunisianProducts>(_onImportProducts);
   }
 
   Future<void> _onLoadProducts(
@@ -39,7 +43,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
   Future<void> _onAddProduct(
       AddProduct event, Emitter<ProductState> emit) async {
-    emit(state.copyWith(status: ProductStatus.loading)); // Keep products
+    emit(state.copyWith(status: ProductStatus.loading));
     final result = await addProductUseCase(event.product);
     result.fold(
       (failure) => emit(state.copyWith(
@@ -47,7 +51,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       (_) {
         emit(state.copyWith(
             status: ProductStatus.success,
-            message: 'Product added successfully'));
+            message: 'Produit ajouté avec succès'));
         add(LoadProducts());
       },
     );
@@ -63,7 +67,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       (_) {
         emit(state.copyWith(
             status: ProductStatus.success,
-            message: 'Product updated successfully'));
+            message: 'Produit mis à jour avec succès'));
         add(LoadProducts());
       },
     );
@@ -79,9 +83,27 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       (_) {
         emit(state.copyWith(
             status: ProductStatus.success,
-            message: 'Product deleted successfully'));
+            message: 'Produit supprimé avec succès'));
         add(LoadProducts());
       },
     );
+  }
+
+  Future<void> _onImportProducts(
+      ImportTunisianProducts event, Emitter<ProductState> emit) async {
+    await emit.forEach<double>(
+      productImportRepository.importTunisianProducts(),
+      onData: (progress) => state.copyWith(
+        status: ProductStatus.loading,
+        importProgress: progress,
+        message: 'Importation: ${(progress * 100).toInt()}%',
+      ),
+      onError: (error, stackTrace) => state.copyWith(
+        status: ProductStatus.error,
+        message: 'Erreur lors de l\'importation: $error',
+      ),
+    );
+    emit(state.copyWith(status: ProductStatus.success, message: 'Importation terminée avec succès', importProgress: 0));
+    add(LoadProducts());
   }
 }

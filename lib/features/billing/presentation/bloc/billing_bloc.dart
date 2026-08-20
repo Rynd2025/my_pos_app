@@ -1,25 +1,129 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:uuid/uuid.dart';
 import '../../domain/entities/cart_item.dart';
-import 'package:billing_app/features/product/domain/entities/product.dart';
-import 'package:billing_app/features/product/domain/usecases/product_usecases.dart';
+import '../../../product/domain/entities/product.dart';
+import '../../../product/domain/usecases/product_usecases.dart';
+import '../../../sales/domain/entities/sale.dart' as sales;
+import '../../../sales/domain/usecases/sale_usecases.dart';
+import '../../../customer/domain/usecases/customer_usecases.dart';
+import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/printer_helper.dart';
 import '../../../../core/data/hive_database.dart';
+import '../../../../core/usecase/usecase.dart';
+import '../../../../core/utils/id_generator.dart';
 
 part 'billing_event.dart';
 part 'billing_state.dart';
 
 class BillingBloc extends Bloc<BillingEvent, BillingState> {
   final GetProductByBarcodeUseCase getProductByBarcodeUseCase;
+  final SaveSaleUseCase saveSaleUseCase;
+  final GetNextTicketNumberUseCase getNextTicketNumberUseCase;
+  final UpdateProductUseCase updateProductUseCase;
+  final AddDebtUseCase addDebtUseCase;
 
-  BillingBloc({required this.getProductByBarcodeUseCase})
-      : super(const BillingState()) {
+  BillingBloc({
+    required this.getProductByBarcodeUseCase,
+    required this.saveSaleUseCase,
+    required this.getNextTicketNumberUseCase,
+    required this.updateProductUseCase,
+    required this.addDebtUseCase,
+  }) : super(const BillingState()) {
     on<ScanBarcodeEvent>(_onScanBarcode);
     on<AddProductToCartEvent>(_onAddProductToCart);
     on<RemoveProductFromCartEvent>(_onRemoveProductFromCart);
     on<UpdateQuantityEvent>(_onUpdateQuantity);
     on<ClearCartEvent>(_onClearCart);
     on<PrintReceiptEvent>(_onPrintReceipt);
+    on<ValidateSale>(_onValidateSale);
+    on<FastPayEvent>(_onFastPay);
+  }
+
+  void _onFastPay(FastPayEvent event, Emitter<BillingState> emit) {
+    final fastPayProduct = Product(
+      id: 'fast_pay_${Uuid().v4()}',
+      name: 'VENTE RAPIDE',
+      price: event.amount,
+      purchasePrice: 0.0, // Usually unknown for manual entry
+      barcode: null,
+    );
+    final newItem = CartItem(product: fastPayProduct);
+    emit(state.copyWith(cartItems: [...state.cartItems, newItem])); 
+  }
+
+  Future<void> _onValidateSale(
+      ValidateSale event, Emitter<BillingState> emit) async {
+    if (state.cartItems.isEmpty) return;
+
+    // 1. Generate Ticket Number (Local & Fast)
+    final ticketNumberResult = await getNextTicketNumberUseCase(NoParams());
+    String ticketNumber = 'TKT-000000';
+    ticketNumberResult.fold((l) => null, (r) => ticketNumber = r);
+
+    final totalMillimes = CurrencyUtils.toMillimes(state.totalAmount);
+    final dueMillimes = totalMillimes - event.paidMillimes;
+
+    // 2. Create Sale Record
+    final sale = sales.Sale(
+      id: Uuid().v4(),
+      ticketNumber: ticketNumber,
+      createdAt: DateTime.now(),
+      customerId: event.customerId,
+      items: state.cartItems
+          .map((item) => sales.SaleItem(
+                productId: item.product.id,
+                productName: item.product.name,
+                quantity: item.quantity,
+                priceMillimes: CurrencyUtils.toMillimes(item.product.price),
+                purchasePriceMillimes: CurrencyUtils.toMillimes(item.product.purchasePrice),
+              ))
+          .toList(),
+      totalMillimes: totalMillimes,
+      paidMillimes: event.paidMillimes,
+      dueMillimes: dueMillimes,
+      paymentMethod: event.paymentMethod,
+    );
+
+    // 3. Atomically Persist Sale (The Ticket)
+    final saveResult = await saveSaleUseCase(sale);
+
+    if (saveResult.isRight()) {
+      // 4. Update debt if needed (High priority for ledger integrity)
+      if (event.paymentMethod == sales.PaymentMethod.credit &&
+          event.customerId != null) {
+        final paymentId = IdGenerator.generatePaymentId(ticketNumber);
+        await addDebtUseCase(AddDebtParams(
+          customerId: event.customerId!,
+          amountMillimes: dueMillimes,
+          saleId: sale.id,
+          ticketNumber: ticketNumber,
+          paymentId: paymentId,
+        ));
+      }
+
+      // 5. Update Stock (Sequential await to ensure database consistency)
+      for (final item in state.cartItems) {
+        if (!item.product.id.startsWith('fast_pay_')) {
+          // Re-fetch product to get latest stock from DB before subtracting
+          final pResult = await getProductByBarcodeUseCase(item.product.barcode ?? '');
+          await pResult.fold(
+            (l) async {}, // Ignore if not found
+            (latestProduct) async {
+              final updatedProduct = latestProduct.copyWith(
+                stock: latestProduct.stock - item.quantity,
+              );
+              await updateProductUseCase(updatedProduct);
+            },
+          );
+        }
+      }
+
+      // 6. Clear Cart & Signal Success
+      emit(state.copyWith(cartItems: [])); 
+    } else {
+      emit(state.copyWith(error: 'Erreur lors de l\'enregistrement de la vente'));
+    }
   }
 
   Future<void> _onScanBarcode(
@@ -27,7 +131,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     final result = await getProductByBarcodeUseCase(event.barcode);
     result.fold(
       (failure) =>
-          emit(state.copyWith(error: 'Product not found: ${event.barcode}')),
+          emit(state.copyWith(error: 'Produit non trouvé: ${event.barcode}')),
       (product) {
         add(AddProductToCartEvent(product));
       },
@@ -36,7 +140,6 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
 
   void _onAddProductToCart(
       AddProductToCartEvent event, Emitter<BillingState> emit) {
-    // Clear error when adding
     final cleanState = state.copyWith(error: null);
 
     final existingIndex = cleanState.cartItems
@@ -109,14 +212,40 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
         isPrinting: true, printSuccess: false, clearError: true));
 
     try {
-      final items = state.cartItems
-          .map((item) => {
-                'name': item.product.name,
-                'qty': item.quantity,
-                'price': item.product.price,
-                'total': item.total,
-              })
-          .toList();
+      final List<Map<String, dynamic>> items;
+      double totalAmount;
+      String? ticketNumber;
+      String? paymentMethod;
+      double? paidAmount;
+      double? dueAmount;
+      String? customerName;
+
+      if (event.sale != null) {
+        final sale = event.sale!;
+        items = sale.items
+            .map((item) => {
+                  'name': item.productName,
+                  'qty': item.quantity,
+                  'price': CurrencyUtils.fromMillimes(item.priceMillimes),
+                  'total': CurrencyUtils.fromMillimes(item.totalMillimes),
+                })
+            .toList();
+        totalAmount = CurrencyUtils.fromMillimes(sale.totalMillimes);
+        ticketNumber = sale.ticketNumber;
+        paymentMethod = sale.paymentMethod == sales.PaymentMethod.cash ? 'ESPÈCES' : 'CRÉDIT';
+        paidAmount = CurrencyUtils.fromMillimes(sale.paidMillimes);
+        dueAmount = CurrencyUtils.fromMillimes(sale.dueMillimes);
+      } else {
+        items = state.cartItems
+            .map((item) => {
+                  'name': item.product.name,
+                  'qty': item.quantity,
+                  'price': item.product.price,
+                  'total': item.total,
+                })
+            .toList();
+        totalAmount = state.totalAmount;
+      }
 
       await printerHelper.printReceipt(
           shopName: event.shopName,
@@ -124,14 +253,18 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
           address2: event.address2,
           phone: event.phone,
           items: items,
-          total: state.totalAmount,
-          footer: event.footer);
+          total: totalAmount,
+          footer: event.footer,
+          ticketNumber: ticketNumber,
+          paymentMethod: paymentMethod,
+          paidAmount: paidAmount,
+          dueAmount: dueAmount,
+          customerName: customerName);
 
       emit(state.copyWith(isPrinting: false, printSuccess: true));
     } catch (e) {
       emit(state.copyWith(
           isPrinting: false, error: 'Print failed: $e', clearError: false));
-      // Reset error instantly avoids sticky error
       emit(state.copyWith(clearError: true));
     }
   }

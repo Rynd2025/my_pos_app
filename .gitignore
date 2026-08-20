@@ -1,9 +1,128 @@
-# Miscellaneous
+# ============================================================
+# Flutter / Dart
+# ============================================================
+
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+
+# Flutter generated documentation
+**/doc/api/
+
+# iOS Flutter generated files
+**/ios/Flutter/.last_build_id
+
+# Dart / Flutter generated artifacts
+.flutter-plugins-dependencies
+*.symbols
+*.symbols.zip
+app.*.symbols
+app.*.map.json
+
+
+# ============================================================
+# Android / Gradle
+# ============================================================
+
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+
+# Gradle
+.gradle/
+gradle-app.setting
+gradlew
+gradlew.bat
+
+# Android generated/local configuration
+local.properties
+
+# Android Studio generated artifacts
+.externalNativeBuild/
+.cxx/
+
+
+# ============================================================
+# iOS
+# ============================================================
+
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/ephemeral/
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+
+# Xcode
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+
+
+# ============================================================
+# macOS
+# ============================================================
+
+macos/Flutter/ephemeral/
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+
+# ============================================================
+# Windows
+# ============================================================
+
+windows/flutter/ephemeral/
+
+
+# ============================================================
+# Linux
+# ============================================================
+
+linux/flutter/ephemeral/
+
+
+# ============================================================
+# IntelliJ / Android Studio
+# ============================================================
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+
+# ============================================================
+# VS Code
+# ============================================================
+
+# Uncomment if you don't want VS Code settings committed
+# .vscode/
+
+
+# ============================================================
+# Miscellaneous / temporary files
+# ============================================================
+
 *.class
 *.log
 *.pyc
+*.pyo
+*.pyd
 *.swp
+*.swo
+*.tmp
+*.temp
+
 .DS_Store
+Thumbs.db
+
 .atom/
 .build/
 .buildlog/
@@ -12,36 +131,65 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
 .artifacts/
 devtools_options.yaml
+
+
+# ============================================================
+# Environment / secrets
+# ============================================================
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Android signing keys
+*.jks
+*.keystore
+
+
+# ============================================================
+# Generated source
+# ============================================================
+
+# IMPORTANT:
+# Do NOT ignore *.g.dart in this project.
+# Your generated model files should remain version controlled.
+
+
+# ============================================================
+# Raw / external datasets
+# ============================================================
+
+# Large raw OpenFoodFacts dataset
+openfoodfacts-products.jsonl.gz
+
+
+# ============================================================
+# Build / packaging outputs
+# ============================================================
+
+*.apk
+*.aab
+*.ipa
+
+# Generated archives
+*.zip
+*.tar
+*.tar.gz
+
+
+# ============================================================
+# IDE / OS backups
+# ============================================================
+
+*~
+*.bak
+*.orig
+*.rej

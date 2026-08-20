@@ -29,3 +29,5 @@ class DeleteProduct extends ProductEvent {
   @override
   List<Object> get props => [id];
 }
+
+class ImportTunisianProducts extends ProductEvent {}

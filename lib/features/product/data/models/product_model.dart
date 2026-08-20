@@ -1,7 +1,7 @@
 import 'package:hive/hive.dart';
 import '../../domain/entities/product.dart';
 
-part 'product_model.g.dart'; // Hive generator
+part 'product_model.g.dart';
 
 @HiveType(typeId: 0)
 class ProductModel extends Product {
@@ -13,26 +13,51 @@ class ProductModel extends Product {
   final String name;
   @override
   @HiveField(2)
-  final String barcode;
+  final String? barcode;
   @override
   @HiveField(3)
   final double price;
   @override
   @HiveField(4)
   final int stock;
+  @override
+  @HiveField(5)
+  final String? brand;
+  @override
+  @HiveField(6)
+  final String? category;
+  @override
+  @HiveField(7)
+  final String? unit;
+  @override
+  @HiveField(9)
+  final double purchasePrice;
+  @override
+  @HiveField(10)
+  final int? lowStockThreshold;
 
-  const ProductModel({
+  ProductModel({
     required this.id,
     required this.name,
-    required this.barcode,
+    this.barcode,
     required this.price,
+    this.purchasePrice = 0.0,
     required this.stock,
+    this.lowStockThreshold,
+    this.brand,
+    this.category,
+    this.unit,
   }) : super(
           id: id,
           name: name,
           barcode: barcode,
           price: price,
+          purchasePrice: purchasePrice,
           stock: stock,
+          lowStockThreshold: lowStockThreshold,
+          brand: brand,
+          category: category,
+          unit: unit,
         );
 
   factory ProductModel.fromEntity(Product product) {
@@ -41,7 +66,12 @@ class ProductModel extends Product {
       name: product.name,
       barcode: product.barcode,
       price: product.price,
+      purchasePrice: product.purchasePrice,
       stock: product.stock,
+      lowStockThreshold: product.lowStockThreshold,
+      brand: product.brand,
+      category: product.category,
+      unit: product.unit,
     );
   }
 
@@ -51,7 +81,12 @@ class ProductModel extends Product {
       name: name,
       barcode: barcode,
       price: price,
+      purchasePrice: purchasePrice,
       stock: stock,
+      lowStockThreshold: lowStockThreshold,
+      brand: brand,
+      category: category,
+      unit: unit,
     );
   }
 }
