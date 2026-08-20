@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import '../../../../core/service_locator.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -34,6 +36,14 @@ class _LoginPageState extends State<LoginPage> {
               const Icon(Icons.shop_two, size: 80, color: Colors.blue),
               const SizedBox(height: 32),
               const Text('Mon POS Offline-First', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              // TEMPORARY DIAGNOSTIC — remove once API_BASE_URL is confirmed correct.
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'API: ${sl<Dio>().options.baseUrl}',
+                  style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
+                ),
+              ),
               const SizedBox(height: 32),
               TextField(
                 controller: _usernameController,
