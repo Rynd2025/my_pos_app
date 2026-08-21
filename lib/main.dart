@@ -20,16 +20,23 @@ import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/sync/presentation/bloc/sync_bloc.dart';
 import 'core/services/catalog_import_service.dart';
+import 'core/services/sale_item_repair_service.dart';
 import 'core/services/sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await HiveDatabase.init();
+
+  // One-time local data repair (must finish before di.init()/first sync
+  // attempt so a device with pre-existing corrupted sale items doesn't
+  // hammer the backend with the same rejected push again on startup).
+  await SaleItemRepairService.repairIfNeeded();
+
   await di.init();
-  
+
   // Background import if needed
   CatalogImportService.importIfNeeded();
-  
+
   runApp(const MyApp());
 }
 

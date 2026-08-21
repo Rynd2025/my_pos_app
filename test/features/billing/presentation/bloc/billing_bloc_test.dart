@@ -121,6 +121,29 @@ void main() {
     expect(bloc.state.cartItems, isEmpty);
   });
 
+  test('every SaleItem is stamped with its parent Sale\'s real id — never '
+      'left blank (regression: previously always saleId: \'\', which the '
+      'backend correctly rejects with "badly formed hexadecimal UUID '
+      'string" on every sync attempt)', () async {
+    bloc.add(AddProductToCartEvent(product1));
+    bloc.add(AddProductToCartEvent(product2));
+    await Future.delayed(Duration.zero);
+
+    when(() => saveSaleUseCase(any())).thenAnswer((_) async => const Right(null));
+
+    bloc.add(const ValidateSale(paymentMethod: sales.PaymentMethod.cash, paidMillimes: 5000));
+    await bloc.stream.firstWhere((s) => s.status == BillingStatus.success);
+
+    final savedSale = verify(() => saveSaleUseCase(captureAny())).captured.single as sales.Sale;
+
+    expect(savedSale.id, isNotEmpty);
+    expect(savedSale.items, hasLength(2));
+    for (final item in savedSale.items) {
+      expect(item.saleId, savedSale.id);
+      expect(item.saleId, isNotEmpty);
+    }
+  });
+
   test('a successful credit sale also clears the cart and records the debt', () async {
     bloc.add(AddProductToCartEvent(product1));
     await Future.delayed(Duration.zero);

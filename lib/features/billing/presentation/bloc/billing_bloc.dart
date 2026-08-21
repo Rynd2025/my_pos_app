@@ -67,15 +67,16 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     final dueMillimes = totalMillimes - event.paidMillimes;
 
     // 2. Create Sale Record
+    final saleId = Uuid().v4();
     final sale = sales.Sale(
-      id: Uuid().v4(),
+      id: saleId,
       ticketNumber: ticketNumber,
       createdAt: DateTime.now(),
       customerId: event.customerId,
       items: state.cartItems
           .map((item) => sales.SaleItem(
                 id: const Uuid().v4(),
-                saleId: '', // Will be set or not used depending on backend
+                saleId: saleId,
                 productId: item.product.id,
                 productName: item.product.name,
                 quantity: item.quantity,
