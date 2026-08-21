@@ -51,4 +51,25 @@ class OutboxRepositoryImpl implements OutboxRepository {
       return Left(CacheFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> recordFailure(String id, String error) async {
+    try {
+      final existing = HiveDatabase.outboxBox.get(id);
+      if (existing != null) {
+        await HiveDatabase.outboxBox.put(
+          id,
+          OutboxModel.fromEntity(
+            existing.toEntity().copyWith(
+                  retryCount: existing.retryCount + 1,
+                  lastError: error,
+                ),
+          ),
+        );
+      }
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
 }

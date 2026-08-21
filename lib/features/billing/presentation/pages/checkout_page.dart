@@ -368,21 +368,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             ),
                             const SizedBox(height: 16),
                             PrimaryButton(
-                              onPressed: (billingState.status == BillingStatus.success || (_paymentMethod == sales.PaymentMethod.credit && _selectedCustomer == null)) 
-                                  ? null 
+                              onPressed: (billingState.status == BillingStatus.success || (_paymentMethod == sales.PaymentMethod.credit && _selectedCustomer == null))
+                                  ? null
                                   : () => _completeSale(totalMillimes),
                               label: billingState.status == BillingStatus.success ? 'VENTE TERMINÉE' : 'ENCAISSER',
                               icon: Icons.check_circle,
                               isLoading: billingState.status == BillingStatus.loading || billingState.isPrinting,
                             ),
-                            if (billingState.status == BillingStatus.success)
-                              TextButton(
-                                onPressed: () {
-                                  context.read<BillingBloc>().add(ClearCartEvent());
-                                  context.pop();
-                                },
-                                child: const Text('COMMENCER NOUVELLE VENTE'),
-                              ),
                           ],
                         ),
                       ),

@@ -22,13 +22,15 @@ class OutboxModelAdapter extends TypeAdapter<OutboxModel> {
       entityId: fields[2] as String,
       operationIndex: fields[3] as int,
       createdAt: fields[4] as DateTime,
+      retryCount: fields[5] == null ? 0 : fields[5] as int,
+      lastError: fields[6] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, OutboxModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -38,7 +40,11 @@ class OutboxModelAdapter extends TypeAdapter<OutboxModel> {
       ..writeByte(3)
       ..write(obj.operationIndex)
       ..writeByte(4)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(5)
+      ..write(obj.retryCount)
+      ..writeByte(6)
+      ..write(obj.lastError);
   }
 
   @override

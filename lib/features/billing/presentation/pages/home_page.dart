@@ -98,6 +98,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       context: context,
       builder: (context) {
         return AlertDialog(
+          // AlertDialog's content is NOT scrollable by default. With
+          // autofocus opening the keyboard immediately, the fixed-size
+          // content column can end up a few pixels taller than the space
+          // left above the keyboard on smaller screens — this lets it
+          // scroll into view instead of overflowing.
+          scrollable: true,
           title: const Text('Vente Rapide'),
           content: TextField(
             controller: amountController,

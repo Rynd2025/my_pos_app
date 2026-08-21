@@ -19,6 +19,12 @@ class OutboxModel extends Outbox {
   @override
   @HiveField(4)
   final DateTime createdAt;
+  @override
+  @HiveField(5, defaultValue: 0)
+  final int retryCount;
+  @override
+  @HiveField(6)
+  final String? lastError;
 
   const OutboxModel({
     required this.id,
@@ -26,12 +32,16 @@ class OutboxModel extends Outbox {
     required this.entityId,
     required this.operationIndex,
     required this.createdAt,
+    this.retryCount = 0,
+    this.lastError,
   }) : super(
           id: id,
           entityType: entityType,
           entityId: entityId,
           operation: OutboxOperation.upsert, // Placeholder for super
           createdAt: createdAt,
+          retryCount: retryCount,
+          lastError: lastError,
         );
 
   factory OutboxModel.fromEntity(Outbox outbox) {
@@ -41,6 +51,8 @@ class OutboxModel extends Outbox {
       entityId: outbox.entityId,
       operationIndex: outbox.operation.index,
       createdAt: outbox.createdAt,
+      retryCount: outbox.retryCount,
+      lastError: outbox.lastError,
     );
   }
 
@@ -51,6 +63,8 @@ class OutboxModel extends Outbox {
       entityId: entityId,
       operation: OutboxOperation.values[operationIndex],
       createdAt: createdAt,
+      retryCount: retryCount,
+      lastError: lastError,
     );
   }
 }

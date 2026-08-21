@@ -124,8 +124,13 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
         }
       }
 
-      // 6. Signal Success WITHOUT clearing cart items (User requested to keep them)
-      emit(state.copyWith(status: BillingStatus.success)); 
+      // 6. The sale is now durably persisted — this is the only point in
+      // the whole flow where the cart may be cleared. Clearing it any
+      // earlier (e.g. on checkout navigation) would lose the user's
+      // in-progress sale if they back out or the payment fails; clearing
+      // it later (or leaving it to a separate manual step) lets the old
+      // sale's items bleed into the next one.
+      emit(state.copyWith(cartItems: [], status: BillingStatus.success));
     } else {
       emit(state.copyWith(status: BillingStatus.error, error: 'Erreur lors de l\'enregistrement de la vente'));
     }

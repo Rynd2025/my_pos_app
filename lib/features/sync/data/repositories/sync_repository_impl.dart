@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fpdart/fpdart.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/data/hive_database.dart';
@@ -31,9 +33,22 @@ class SyncRepositoryImpl implements SyncRepository {
         (outboxItems) async {
           if (outboxItems.isEmpty) return const Right(null);
 
+          // Each item is pushed and resolved independently: one rejected or
+          // failed item must never block the items queued behind it. An
+          // item is only ever removed once the backend has actually
+          // confirmed success — a failure (permanent validation error or a
+          // transient network/server error alike) leaves it in place, with
+          // the failure recorded on it, and processing moves on.
           for (final item in outboxItems) {
             final data = _getEntityJson(item.entityType, item.entityId);
-            if (data != null) {
+            if (data == null) {
+              // Nothing left locally to push for this entity (e.g. it was
+              // already removed) — stale reference, safe to drop.
+              await outboxRepository.remove(item.id);
+              continue;
+            }
+
+            try {
               await remoteDataSource.pushOutbox({
                 'id': item.id,
                 'entity_type': item.entityType,
@@ -42,8 +57,13 @@ class SyncRepositoryImpl implements SyncRepository {
                 'data': data,
                 'created_at': item.createdAt.toIso8601String(),
               });
+              await outboxRepository.remove(item.id);
+            } catch (e) {
+              final description = _describeError(e);
+              debugPrint(
+                  'Sync push failed for ${item.entityType} (kept for retry): $description');
+              await outboxRepository.recordFailure(item.id, description);
             }
-            await outboxRepository.remove(item.id);
           }
           return const Right(null);
         },
@@ -133,6 +153,17 @@ class SyncRepositoryImpl implements SyncRepository {
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
+  }
+
+  /// Summarizes a failed push for logging/storage — status code or error
+  /// type only. Never includes the request/response body, which could
+  /// contain customer names, phone numbers, or amounts.
+  String _describeError(Object e) {
+    if (e is DioException) {
+      final status = e.response?.statusCode;
+      return status != null ? 'HTTP $status' : 'network error (${e.type.name})';
+    }
+    return e.runtimeType.toString();
   }
 
   Map<String, dynamic>? _getEntityJson(String type, String id) {
